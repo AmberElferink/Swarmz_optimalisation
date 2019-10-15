@@ -12,6 +12,9 @@
 *.userosscache
 *.sln.docstates
 
+GPUCache/*
+VTune Amplifier Results/*
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

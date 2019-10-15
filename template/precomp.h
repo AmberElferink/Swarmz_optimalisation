@@ -62,6 +62,7 @@
 using namespace std;
 
 #include "swarmz.h"
+using namespace sw;
 
 #include "surface.h"
 #include "template.h"

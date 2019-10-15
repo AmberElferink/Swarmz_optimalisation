@@ -175,7 +175,12 @@ void Surface::Line( float x1, float y1, float x2, float y2, Pixel c )
 
 void Surface::Plot( int x, int y, Pixel c )
 {
-	if ((x >= 0) && (y >= 0) && (x < m_Width) && (y < m_Height))
+	m_Buffer[x + y * m_Pitch] = c;
+}
+
+void Surface::PlotSafe( int x, int y, Pixel c )
+{
+	if ( ( x >= 0 ) && ( y >= 0 ) && ( x < m_Width ) && ( y < m_Height ) )
 		m_Buffer[x + y * m_Pitch] = c;
 }
 
