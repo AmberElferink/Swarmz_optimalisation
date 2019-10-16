@@ -273,6 +273,11 @@ int main( int argc, char **argv )
 	SDL_Renderer *renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC );
 	SDL_Texture *frameBuffer = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCRWIDTH, SCRHEIGHT );
 #endif
+
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
 	int exitapp = 0;
 	game = new Game();
 	game->SetTarget( surface );
@@ -347,6 +352,7 @@ int main( int argc, char **argv )
 		}
 	}
 	game->Shutdown();
+	ImGui::DestroyContext();
 	SDL_Quit();
 	return 1;
 }

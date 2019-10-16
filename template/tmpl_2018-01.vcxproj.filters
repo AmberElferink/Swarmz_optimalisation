@@ -49,6 +49,7 @@
     <ClInclude Include="lib\imgui\imgui_internal.h">
       <Filter>imgui</Filter>
     </ClInclude>
+    <ClInclude Include="GUI.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">
