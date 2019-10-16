@@ -56,7 +56,8 @@
 #include <immintrin.h>
 
 #include "lib/imgui/imgui.h"
-
+#include "lib/imgui/examples/imgui_impl_sdl.h"
+#include "lib/imgui/imgui_sdl.h"
 // clang-format off
 
 // "Leak" common namespaces to all compilation units. This is not standard
