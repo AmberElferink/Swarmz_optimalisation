@@ -55,6 +55,8 @@
 // See: https://stackoverflow.com/a/11228864/2844473
 #include <immintrin.h>
 
+#include "lib/imgui/imgui.h"
+
 // clang-format off
 
 // "Leak" common namespaces to all compilation units. This is not standard
