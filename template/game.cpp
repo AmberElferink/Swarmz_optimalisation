@@ -151,5 +151,7 @@ void Game::Tick( float deltaTime )
 		screen->PlotSafe( plot_position.X, plot_position.Y, boidPosition );
 		screen->PlotSafe( plot_velocity.X, plot_velocity.Y, boidVelocity );
 		screen->PlotSafe( plot_acceleration.X, plot_acceleration.Y, boidAcceleration );
+		
 	}
+	ImGui::ShowDemoWindow();
 }

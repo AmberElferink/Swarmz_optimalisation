@@ -278,11 +278,19 @@ int main( int argc, char **argv )
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
+	//how to draw UI
+	ImGuiSDL::Initialize( renderer, SCRWIDTH, SCRHEIGHT );
+	ImGui_ImplSDL2_InitForOpenGL( window, nullptr );
+
+
 	int exitapp = 0;
 	game = new Game();
 	game->SetTarget( surface );
 	timer t;
 	t.reset();
+
+	ImGui::NewFrame();
+
 	while ( !exitapp )
 	{
 #ifdef ADVANCEDGL
@@ -307,6 +315,9 @@ int main( int argc, char **argv )
 		}
 		SDL_UnlockTexture( frameBuffer );
 		SDL_RenderCopy( renderer, frameBuffer, NULL, NULL );
+
+		ImGui::Render();
+		ImGuiSDL::Render( ImGui::GetDrawData() );
 		SDL_RenderPresent( renderer );
 #endif
 		if ( firstframe )
@@ -315,12 +326,19 @@ int main( int argc, char **argv )
 			firstframe = false;
 		}
 		// calculate frame time and pass it to game->Tick
-		game->Tick( t.elapsed() );
-		t.reset();
+
 		// event loop
 		SDL_Event event;
+
+		ImGui::NewFrame();
+		ImGui_ImplSDL2_NewFrame( window );
+
+
+
+
 		while ( SDL_PollEvent( &event ) )
 		{
+			ImGui_ImplSDL2_ProcessEvent( &event );
 			switch ( event.type )
 			{
 			case SDL_QUIT:
@@ -350,8 +368,13 @@ int main( int argc, char **argv )
 				break;
 			}
 		}
+
+		game->Tick( t.elapsed() );
+		t.reset();
 	}
 	game->Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGuiSDL::Deinitialize();
 	ImGui::DestroyContext();
 	SDL_Quit();
 	return 1;
