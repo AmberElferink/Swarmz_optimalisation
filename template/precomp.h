@@ -55,9 +55,12 @@
 // See: https://stackoverflow.com/a/11228864/2844473
 #include <immintrin.h>
 
+//imgui lib
 #include "lib/imgui/imgui.h"
 #include "lib/imgui/examples/imgui_impl_sdl.h"
 #include "lib/imgui/imgui_sdl.h"
+
+
 // clang-format off
 
 // "Leak" common namespaces to all compilation units. This is not standard
@@ -71,6 +74,7 @@ using namespace sw;
 #include "template.h"
 
 using namespace Tmpl8;
+#include "Graph.h"
 
 #include "game.h"
 // clang-format on

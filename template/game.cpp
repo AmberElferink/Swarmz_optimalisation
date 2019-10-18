@@ -36,6 +36,8 @@ vector<Vec3> targets;
 // represents the swarm
 Swarm *swarm;
 
+Graph graph1( "timer1", 100, 0x00FF0000 );
+;
 // -----------------------------------------------------------
 // Initialize the application
 // -----------------------------------------------------------
@@ -59,6 +61,8 @@ void Game::Init()
 
 	swarm = new Swarm( &boids );
 	swarm->SteeringWeight = 0.01f;
+
+	
 }
 
 void Game::KeyDown( int key )
@@ -111,6 +115,8 @@ void Game::MouseDown( int key )
 // -----------------------------------------------------------
 void Game::Tick( float deltaTime )
 {
+	graph1.Start();
+
 	float dt = deltaTime / 100.0f;
 	screen->Clear( 0x000000 );
 
@@ -153,5 +159,18 @@ void Game::Tick( float deltaTime )
 		screen->PlotSafe( plot_acceleration.X, plot_acceleration.Y, boidAcceleration );
 		
 	}
-	ImGui::ShowDemoWindow();
+	graph1.StopAndStore();
+
+
+
+	//ImGui::ShowDemoWindow();
+	ImGui::Text( "Hello, world %d", 123 );
+	//if ( ImGui::Button( "Save" ) )
+	//	MySaveFunction();
+	char *buf = "string";
+	float f = 0.5;
+	ImGui::InputText( "string", buf, IM_ARRAYSIZE( buf ) );
+	ImGui::SliderFloat( "float", &f, 0.0f, 1.0f );
+	if ( graph1.m_showGraph )
+		ImGui::PlotHistogram( "things", graph1.m_graphData, graph1.m_graphWidth, 0, NULL, 0.0f, 1000.0f, ImVec2( 0, 80 ) );
 }
