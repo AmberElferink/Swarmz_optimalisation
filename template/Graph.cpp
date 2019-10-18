@@ -5,7 +5,7 @@
 // Non-static variables / functions
 // -------------------------------------------------------------------
 
-Graph::Graph( const char* name, int width, int color )
+Graph::Graph( const char *name, int width, int color, float scaleMin, float scaleMax )
 {
 	// set all the variables.
 	m_name = name;
@@ -14,6 +14,8 @@ Graph::Graph( const char* name, int width, int color )
 	m_color = color;
 	m_current = 0;
 	m_showGraph = true;
+	m_scaleMin = scaleMin;
+	m_scaleMax = scaleMax;
 
 	// initialize the data array.
 	memset( m_graphData, 0, width * sizeof( float ) );
@@ -58,3 +60,4 @@ void Graph::Store()
 	m_graphData[m_graphWidth - 1] = m_current;
 	m_current = 0;
 }
+

@@ -166,13 +166,13 @@ namespace sw {
         float AlignmentWeight = 1;
         float CohesionWeight = 1;
 
-        float SteeringWeight = 0.1;
+        float SteeringWeight = 0.1f;
         std::vector<Vec3> SteeringTargets;
         DistanceType SteeringTargetType = DistanceType::LINEAR;
 
-        float BlindspotAngleDeg = 20;
-        float MaxAcceleration = 10;
-        float MaxVelocity = 20;
+        float BlindspotAngleDeg = 20.0f;
+        float MaxAcceleration = 10.0f;
+        float MaxVelocity = 20.0f;
 
         explicit Swarm(std::vector<Boid> *entities) : boids(entities) {
             std::random_device rd;
