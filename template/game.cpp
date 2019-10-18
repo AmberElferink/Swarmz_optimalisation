@@ -110,7 +110,30 @@ void Game::MouseDown( int key )
 	//		break;
 	//	}
 }
+void DrawGUI()
+{
+	//ImGui::ShowDemoWindow();
+	ImGui::Text( "Hello, world %d", 123 );
 
+	if ( ImGui::CollapsingHeader( "Controls", ImGuiTreeNodeFlags_DefaultOpen ) )
+	{
+		ImGui::SliderFloat( "zoom level", &camera_scale, camera_scale_min, camera_scale_max );
+	}
+	//TreeNodeEx gives indent
+	if ( ImGui::CollapsingHeader( "Graphs", ImGuiTreeNodeFlags_DefaultOpen ) )
+	{
+		for ( int i = 0; i < graphs.size(); i++ )
+		{
+			char gNr[3];
+			snprintf( gNr, sizeof( gNr ), "g%i", i );
+			//(sc = 100ms)
+			char title[40];
+			snprintf( title, sizeof( title ), "%s(scale=%.1fms)", graphs[i]->m_name, graphs[i]->m_scaleMax );
+			if ( graphs[i]->m_showGraph )
+				ImGui::PlotHistogram( gNr, graphs[i]->m_graphData, graphs[i]->m_graphWidth, 0, title, graphs[i]->m_scaleMin, graphs[i]->m_scaleMax, ImVec2( 0, 80 ) );
+		}
+	}
+}
 // -----------------------------------------------------------
 // Main application tick function
 // -----------------------------------------------------------
@@ -163,26 +186,5 @@ void Game::Tick( float deltaTime )
 	g2.StopAndStore();
 	g1.StopAndStore();
 
-	//ImGui::ShowDemoWindow();
-	ImGui::Text( "Hello, world %d", 123 );
-
-	if ( ImGui::CollapsingHeader( "Controls", ImGuiTreeNodeFlags_DefaultOpen) )
-	{
-		
-		ImGui::SliderFloat( "zoom level", &camera_scale, camera_scale_min, camera_scale_max );
-	}
-	//TreeNodeEx gives indent 
-	if ( ImGui::CollapsingHeader( "Graphs", ImGuiTreeNodeFlags_DefaultOpen ) )
-	{
-		for (int i = 0; i < graphs.size(); i++)
-		{
-			char gNr[3];
-			snprintf( gNr, sizeof( gNr ), "g%i", i );
-			//(sc = 100ms)
-			char title[40];
-			snprintf( title, sizeof( title ), "%s(scale=%.1fms)", graphs[i]->m_name, graphs[i]->m_scaleMax );
-			if ( graphs[i]->m_showGraph )
-				ImGui::PlotHistogram( gNr , graphs[i]->m_graphData, graphs[i]->m_graphWidth, 0, title, graphs[i]->m_scaleMin, graphs[i]->m_scaleMax, ImVec2( 0, 80 ) );
-		}
-	}
+	DrawGUI();
 }
