@@ -19,6 +19,7 @@ Graph::Graph( const char *name, int width, int color, float scaleMin, float scal
 
 	// initialize the data array.
 	memset( m_graphData, 0, width * sizeof( float ) );
+	graphs.push_back( this );
 }
 
 Graph::~Graph()

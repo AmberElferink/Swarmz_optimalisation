@@ -36,6 +36,7 @@ vector<Vec3> targets;
 // represents the swarm
 Swarm *swarm;
 
+//new graphs will automatically be added to graphs
 vector<Graph *> graphs;
 Graph g1( "boids loop", 100, 0x00FF0000, 0, 100 );
 Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
@@ -45,9 +46,6 @@ Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
 // -----------------------------------------------------------
 void Game::Init()
 {
-	graphs.push_back( &g1 );
-	graphs.push_back( &g2 );
-
 	for ( int j = 0; j < COUNT; j++ )
 	{
 		Vec3 pos = Vec3(

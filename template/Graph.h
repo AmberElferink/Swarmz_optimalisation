@@ -27,5 +27,5 @@ class Graph
 	void StopAndStore();
 	void Store();
 };
-
+extern std::vector<Graph *> graphs;
 
