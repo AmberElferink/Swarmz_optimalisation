@@ -7,8 +7,8 @@
 // Prevent expansion clashes (when using std::min and std::max):
 #define NOMINMAX
 
-#define SCRWIDTH 800
-#define SCRHEIGHT 512
+#define SCRWIDTH 1440
+#define SCRHEIGHT 810
 // #define FULLSCREEN
 // #define ADVANCEDGL	// faster if your system supports it
 
@@ -55,6 +55,12 @@
 // See: https://stackoverflow.com/a/11228864/2844473
 #include <immintrin.h>
 
+//imgui lib
+#include "lib/imgui/imgui.h"
+#include "lib/imgui/examples/imgui_impl_sdl.h"
+#include "lib/imgui/imgui_sdl.h"
+
+
 // clang-format off
 
 // "Leak" common namespaces to all compilation units. This is not standard
@@ -66,9 +72,10 @@ using namespace sw;
 
 #include "surface.h"
 #include "template.h"
-#include "Scenario.h"
 
 using namespace Tmpl8;
+#include "Scenario.h"
+#include "Graph.h"
 
 #include "game.h"
 // clang-format on

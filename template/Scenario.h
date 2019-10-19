@@ -7,9 +7,9 @@ class Scenario
 
   protected:
 	// represents a few debugging colors
-	Tmpl8::Pixel boidPosition = 0xffffff;
-	Tmpl8::Pixel boidVelocity = 0xffff00;
-	Tmpl8::Pixel boidAcceleration = 0xff0000;
+	Pixel boidPosition = 0xffffff;
+	Pixel boidVelocity = 0xffff00;
+	Pixel boidAcceleration = 0xff0000;
 
 	// used for debugging purposes
 	float draw_velocity_distance = 2.0f;
@@ -20,15 +20,15 @@ class Scenario
 	float camera_y = 0.0f;
 	float camera_speed = 5.0f;
 
+	// represents the swarm
+	Swarm *swarm;
+
+  public:
 	float camera_scale = 1.0f;
 	float camera_scale_min = 0.1f;
 	float camera_scale_max = 10.0f;
 	float camera_scale_factor = 0.9f;
 
-	// represents the swarm
-	Swarm *swarm;
-
-  public:
 	Scenario()
 	{
 		swarm = new Swarm( &boids );
@@ -57,8 +57,8 @@ class Scenario
 	// the same, hence we implement it on this
 	// level.
 	void Update( float dt );
-	void Draw( Tmpl8::Surface *screen );
-	void DrawVoxelDensity( Tmpl8::Surface *screen );
+	void Draw( Surface *screen );
+	void DrawVoxelDensity( Surface *screen );
 };
 
 class ScenarioRandom : public Scenario
