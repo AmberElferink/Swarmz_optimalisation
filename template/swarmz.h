@@ -34,8 +34,6 @@
 #include <cmath>
 #include <random>
 
-#define DEBUG_PERFORMANCE
-
 # define PI2 6.28318530717958647692
 
 namespace sw {

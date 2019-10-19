@@ -1,54 +1,12 @@
 #include "precomp.h"
 
-void Scenario::MouseDown( int key )
-{
-	// 1 = left
-	// 2 = middle
-	// 3 = right
-
-	switch ( key )
-	{
-	case 1:
-		camera_scale = min( camera_scale_max, camera_scale * ( 2.0f - camera_scale_factor ) );
-		break;
-
-	case 3:
-		camera_scale = max( camera_scale_min, camera_scale * camera_scale_factor );
-		break;
-	}
-}
-
-void Scenario::KeyDown( int key )
-{
-	// 4 = a
-	// 22 = s
-	// 7 = d
-	// 26 = w
-
-	switch ( key )
-	{
-	case 4:
-		camera_x += camera_speed;
-		break;
-
-	case 7:
-		camera_x -= camera_speed;
-		break;
-
-	case 22:
-		camera_y -= camera_speed;
-		break;
-
-	case 26:
-		camera_y += camera_speed;
-		break;
-	}
-}
-
 void Scenario::Update( float dt )
 {
 	// construct the camera position vector
-	Vec3 position = Vec3( camera_x, camera_y, 0.0f );
+	Vec3 position = Vec3(
+		camera_x - ( SCRWIDTH >> 1 ),
+		camera_y - ( SCRHEIGHT >> 1 ),
+		0.0f );
 
 	// set the targets, update each boid
 	swarm->SteeringTargets = targets;
@@ -64,7 +22,10 @@ void Scenario::Draw( Surface *screen )
 	screen->Clear( 0x000000 );
 
 	// construct the camera position vector
-	Vec3 position = Vec3( camera_x, camera_y, 0.0f );
+	Vec3 position = Vec3(
+		camera_x + ( SCRWIDTH >> 1 ),
+		camera_y + ( SCRHEIGHT >> 1 ),
+		0.0f );
 
 	// draw each boid
 	for ( Boid b : boids )
@@ -95,6 +56,26 @@ void Scenario::Draw( Surface *screen )
 void Scenario::DrawVoxelDensity( Surface *screen )
 {
 	// requires some functionality to become public / available.
+}
+
+void Scenario::ChangeScale( float scale )
+{
+
+	// given that:
+	//  - our zoom changes from 5 to 10
+	//  - our viewport was 100 / 5 = 20 to 100 / 5 = 20, (20, 20)
+	// and now is 100 / 10 = 10 by 100 / 10 = 10. (10, 10)
+	//  - our camera is at (10, 10), which must move to (5, 5)
+
+	// move the camera accordingly
+	float factor = camera_scale / scale;
+	camera_x *= factor;
+	camera_y *= factor;
+
+	printf( "Factor: %f \r\n", factor);
+
+	// aaannnddd don't forget to update the scale
+	camera_scale = scale;
 }
 
 void ScenarioRandom::Init( int count )

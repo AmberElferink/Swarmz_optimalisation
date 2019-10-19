@@ -1,15 +1,14 @@
 #include "precomp.h"
 
 // represents the number of boids.
-const int COUNT = 400;
+const int COUNT = 200;
 
 Scenario *scenario;
 
-
 //new graphs will automatically be added to graphs
-vector<Graph*> graphs;
-Graph g1("boids loop", 100, 0x00FF0000, 0, 100);
-Graph g2("boids draw loop", 100, 0x00FF0000, 0, 1);
+vector<Graph *> graphs;
+Graph g1( "boids loop", 100, 0x00FF0000, 0, 100 );
+Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
 
 void DrawGUI()
 {
@@ -18,7 +17,11 @@ void DrawGUI()
 
 	if ( ImGui::CollapsingHeader( "Controls", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
-		ImGui::SliderFloat( "zoom level", &scenario->camera_scale, scenario->camera_scale_min, scenario->camera_scale_max );
+		float camera_scale = scenario->camera_scale;
+		if (ImGui::SliderFloat("zoom level", &camera_scale, scenario->camera_scale_min, scenario->camera_scale_max))
+		{
+			scenario->ChangeScale( camera_scale );
+		}
 	}
 	//TreeNodeEx gives indent
 	if ( ImGui::CollapsingHeader( "Graphs", ImGuiTreeNodeFlags_DefaultOpen ) )
@@ -47,8 +50,6 @@ void Game::Init()
 
 void Game::KeyDown( SDL_Scancode key )
 {
-	scenario->KeyDown( key );
-
 	SwitchScenario( key );
 }
 
@@ -59,14 +60,14 @@ void Tmpl8::Game::SwitchScenario( SDL_Scancode key )
 	// key 1 = random
 	case SDL_SCANCODE_1:
 		scenario->~Scenario();
-		scenario = new ScenarioRandom( );
+		scenario = new ScenarioRandom();
 		scenario->Init( COUNT );
 		break;
 
 	// key 2 = circle
-	case SDL_SCANCODE_2:		
+	case SDL_SCANCODE_2:
 		scenario->~Scenario();
-		scenario = new ScenarioCircle( );
+		scenario = new ScenarioCircle();
 		scenario->Init( COUNT );
 		break;
 	}
@@ -75,7 +76,6 @@ void Tmpl8::Game::SwitchScenario( SDL_Scancode key )
 void Game::MouseDown( int key )
 {
 	printf( "Mousekey pressed: %i\r\n", key );
-	scenario->MouseDown( key );
 }
 // -----------------------------------------------------------
 // Main application tick function

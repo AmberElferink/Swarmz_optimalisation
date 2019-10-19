@@ -7,6 +7,8 @@
 // Prevent expansion clashes (when using std::min and std::max):
 #define NOMINMAX
 
+#define DEBUG_PERFORMANCE
+
 #define SCRWIDTH 1440
 #define SCRHEIGHT 810
 // #define FULLSCREEN
@@ -74,8 +76,8 @@ using namespace sw;
 #include "template.h"
 
 using namespace Tmpl8;
-#include "Scenario.h"
 #include "Graph.h"
+#include "Scenario.h"
 
 #include "game.h"
 // clang-format on

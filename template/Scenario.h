@@ -16,8 +16,8 @@ class Scenario
 	float draw_acceleration_distance = 2.0f;
 
 	// represents a basic camera
-	float camera_x = 0.0f;
-	float camera_y = 0.0f;
+	float camera_x = 0;
+	float camera_y = 0;
 	float camera_speed = 5.0f;
 
 	// represents the swarm
@@ -49,16 +49,13 @@ class Scenario
 	// prepares the scenario
 	virtual void Init(int count) = 0;
 
-	// makes the scenario interactive.
-	void MouseDown( int key );
-	void KeyDown( int key );
-
 	// runs / draws the scenario. Is generally
 	// the same, hence we implement it on this
 	// level.
 	void Update( float dt );
 	void Draw( Surface *screen );
 	void DrawVoxelDensity( Surface *screen );
+	void ChangeScale( float scale );
 };
 
 class ScenarioRandom : public Scenario
@@ -67,8 +64,8 @@ class ScenarioRandom : public Scenario
 	// represents the box in which boids can spawn.
 	const int SPAWN_WIDTH = 800;
 	const int SPAWN_HEIGHT = 500;
-	const int SPAWN_ORIGIN_X = 400;
-	const int SPAWN_ORIGIN_Y = 250;
+	const int SPAWN_ORIGIN_X = 0;
+	const int SPAWN_ORIGIN_Y = 0;
 
   public:
 	void Init( int count );
@@ -79,8 +76,8 @@ class ScenarioCircle : public Scenario
   private:
 	// represents the box in which boids can spawn.
 	const int SPAWN_RADIUS = 400;
-	const int SPAWN_ORIGIN_X = 400;
-	const int SPAWN_ORIGIN_Y = 250;
+	const int SPAWN_ORIGIN_X = 0;
+	const int SPAWN_ORIGIN_Y = 0;
 
   public:
 	void Init( int count );
