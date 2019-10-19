@@ -100,7 +100,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <DebugInformationFormat>None</DebugInformationFormat>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <BrowseInformation>
       </BrowseInformation>
     </ClCompile>
@@ -121,6 +121,7 @@
   <!-- END Custom section -->
   <ItemGroup>
     <ClCompile Include="game.cpp" />
+    <ClCompile Include="Scenario.cpp" />
     <ClCompile Include="surface.cpp" />
     <ClCompile Include="template.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -129,6 +130,7 @@
   <ItemGroup>
     <ClInclude Include="game.h" />
     <ClInclude Include="precomp.h" />
+    <ClInclude Include="Scenario.h" />
     <ClInclude Include="surface.h" />
     <ClInclude Include="swarmz.h" />
     <ClInclude Include="template.h" />

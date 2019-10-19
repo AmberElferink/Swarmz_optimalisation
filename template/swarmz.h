@@ -131,6 +131,7 @@ namespace sw {
 
     struct Vec3Hasher
     {
+
         typedef std::size_t result_type;
 
         result_type operator()(sw::Vec3 const &v) const {
@@ -160,7 +161,7 @@ namespace sw {
     public:
         float PerceptionRadius = 30;
 
-        float SeparationWeight = 1;
+        float SeparationWeight = 120;
         DistanceType SeparationType = DistanceType::INVERSE_QUADRATIC;
 
         float AlignmentWeight = 1;
@@ -259,9 +260,11 @@ namespace sw {
             std::vector<NearbyBoid> result;
 
             Vec3 voxelPos = getVoxelForBoid(b);
+
             voxelPos.X -= 1;
             voxelPos.Y -= 1;
             voxelPos.Z -= 1;
+
             for (int x = 0; x < 4; x++) {
                 for (int y = 0; y < 4; y++) {
                     for (int z = 0; z < 4; z++) {

@@ -8,6 +8,7 @@
     <ClCompile Include="template.cpp">
       <Filter>template code</Filter>
     </ClCompile>
+    <ClCompile Include="Scenario.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
@@ -19,6 +20,7 @@
     </ClInclude>
     <ClInclude Include="precomp.h" />
     <ClInclude Include="swarmz.h" />
+    <ClInclude Include="Scenario.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">

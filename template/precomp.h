@@ -66,6 +66,7 @@ using namespace sw;
 
 #include "surface.h"
 #include "template.h"
+#include "Scenario.h"
 
 using namespace Tmpl8;
 
