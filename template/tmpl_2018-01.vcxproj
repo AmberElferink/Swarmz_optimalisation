@@ -94,7 +94,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <WholeProgramOptimization>false</WholeProgramOptimization>
@@ -125,6 +125,7 @@
   <ItemGroup>
     <ClCompile Include="game.cpp" />
     <ClCompile Include="Graph.cpp" />
+    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="lib\imgui\examples\imgui_impl_sdl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -158,6 +159,7 @@
   <ItemGroup>
     <ClInclude Include="game.h" />
     <ClInclude Include="Graph.h" />
+    <ClInclude Include="Grid.h" />
     <ClInclude Include="lib\imgui\examples\imgui_impl_sdl.h" />
     <ClInclude Include="lib\imgui\imconfig.h" />
     <ClInclude Include="lib\imgui\imgui.h" />

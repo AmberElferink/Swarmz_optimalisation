@@ -28,6 +28,7 @@
     </ClCompile>
     <ClCompile Include="Graph.cpp" />
     <ClCompile Include="Scenario.cpp" />
+    <ClCompile Include="Grid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
@@ -65,6 +66,7 @@
     </ClInclude>
     <ClInclude Include="Graph.h" />
     <ClInclude Include="Scenario.h" />
+    <ClInclude Include="Grid.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">
