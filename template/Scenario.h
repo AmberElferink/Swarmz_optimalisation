@@ -8,12 +8,12 @@ class Scenario
   protected:
 	// represents a few debugging colors
 	Pixel boidPosition = 0xffffff;
-	Pixel boidVelocity = 0xffff00;
-	Pixel boidAcceleration = 0xff0000;
+	Pixel boidVelocity = 0xaaaa00;
+	Pixel boidAcceleration = 0xaa0000;
 
 	// used for debugging purposes
-	float draw_velocity_distance = 2.0f;
-	float draw_acceleration_distance = 2.0f;
+	float draw_velocity_distance = 4.0f;
+	float draw_acceleration_distance = 4.0f;
 
 	// represents a basic camera
 	float camera_x = 0;

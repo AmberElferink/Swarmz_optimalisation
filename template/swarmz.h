@@ -181,15 +181,16 @@ struct Boid
 	Vec3 Velocity;
 	Vec3 Acceleration;
 
+	int numberOfNearbyBoids;
+
 	Boid()
 	{
-		Position = Vec3( 0 );
-		Velocity = Vec3( 0 );
-		Acceleration = Vec3( 0 );
+		
 	}
 
 	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
 	{
+		numberOfNearbyBoids = 0;
 	}
 };
 
@@ -312,7 +313,6 @@ class Swarm
 	void UpdateAcceleration()
 	{
 
-
 		if ( PerceptionRadius == 0 )
 		{
 			PerceptionRadius = 1;
@@ -337,7 +337,7 @@ class Swarm
 	}
 
   private:
-	Grid* grid;
+	Grid *grid;
 	std::vector<Boid> *boids;
 	//std::unordered_map<Vec3, std::vector<Boid *>, Vec3Hasher> voxelCache;
 	std::mt19937 eng;
@@ -354,7 +354,7 @@ class Swarm
 #endif
 
 		auto vnb = getNearbyBoids( b );
-
+		b.numberOfNearbyBoids = vnb.size();
 
 #ifdef DEBUG_PERFORMANCE
 		tGetNearbyBoids->Stop();
@@ -418,13 +418,13 @@ class Swarm
 		grid->ComputeGridIndex( b, ix, iy, iz );
 
 		// loop over 'dem shizzles
-		for ( int x = ix -1; x < ix +1; x++ )
+		for ( int x = ix - 1; x < ix + 1; x++ )
 		{
-			for ( int y = iy -1; y < iy + 1; y++ )
+			for ( int y = iy - 1; y < iy + 1; y++ )
 			{
-				for ( int z = iz -1; z < iz + 1; z++ )
+				for ( int z = iz - 1; z < iz + 1; z++ )
 				{
-					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x,y,z );
+					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
 				}
 			}
 		}
