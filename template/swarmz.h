@@ -188,8 +188,6 @@ struct Boid
 	static atomic<int> boidCounter;
 };
 
-atomic<int> Boid::boidCounter = 0;
-
 struct NearbyBoid
 {
 	Boid *boid;
