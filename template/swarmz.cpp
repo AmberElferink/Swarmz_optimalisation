@@ -76,8 +76,8 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 
 	// do cell computations, this is copied (for now)
 	// - fix expensive operations
-	// - apply if statements sooner (e.g., compute 
-	// distance -> check, compute angle -> check, 
+	// - apply if statements sooner (e.g., compute
+	// distance -> check, compute angle -> check,
 	// etc), allows for early-opt out.
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
@@ -86,20 +86,22 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
-		float distance = vec.Length();
-		float blindAngle = b.Velocity.Negative().AngleTo( vec );
+		float dstSqr = b.Position.DistanceToSqr( target.Position );
 		// check if they are the same or not ( todo: this is broken at this point)
-		if ( b.Position.DistanceToSqr( target.Position ) > 0.0001f )
+		if ( dstSqr > 0.0001f )
 		{
 			// check if the distance is nearby enough
-			if ( distance <= PerceptionRadius )
+			if ( dstSqr <= PerceptionRadius * PerceptionRadius )
 			{
+
+				float blindAngle = b.Velocity.Negative().AngleTo( vec );
+
 				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 )
+				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.DotProduct(b.Velocity) == 0 )
 				{
 					NearbyBoid nb;
-					nb.boid = &target;
-					nb.distance = distance;
+					nb.boid = &target;	
+					nb.distance = sqrtf(dstSqr);
 					nb.direction = vec;
 					out.push_back( nb );
 				}

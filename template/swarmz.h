@@ -37,7 +37,7 @@
 #include <atomic>
 
 #define PI2 6.28318530717958647692
-#define NUMBER_OF_ELEMENTS_IN_CELL 50
+#define NUMBER_OF_ELEMENTS_IN_CELL 220
 
 namespace sw
 {
@@ -181,20 +181,15 @@ struct Boid
 	Vec3 Velocity;
 	Vec3 Acceleration;
 
-	int id;
-
 	Boid()
 	{
 		Position = Vec3( 0 );
 		Velocity = Vec3( 0 );
 		Acceleration = Vec3( 0 );
-
-		id = 0;
 	}
 
 	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
 	{
-		id = 0;
 	}
 };
 
@@ -250,8 +245,6 @@ class Grid
 	// computes the indices for all dimensions.
 	void ComputeGridIndex( const Boid &b, int &ix, int &iy, int &iz );
 
-
-
 	// constructs the grid. If no min / max
 	// is provided the bounding box will be
 	// computed dynamically.
@@ -302,8 +295,7 @@ class Swarm
 	{
 		std::random_device rd;
 		eng = std::mt19937( rd() );
-
-		grid = new Grid( 5, 5, 5 );
+		grid = new Grid( 1, 1, 1 );
 	}
 
 	void Update( float delta )
