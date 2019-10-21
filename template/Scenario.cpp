@@ -35,6 +35,8 @@ void Scenario::Draw( Surface *screen )
 			maximumNearbyBoids = b.numberOfNearbyBoids;
 	}
 
+		printf( "Maximum: %i\r\n", maximumNearbyBoids );
+
 	// draw each boid
 	for ( Boid b : boids )
 	{
