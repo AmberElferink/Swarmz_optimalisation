@@ -140,9 +140,6 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 	{
 		float cellSizeZ = sizeZ / (zcells - 1);
 		celZ = (int)( boidPosRelative.Z / cellSizeZ );
-
-		if ( celZ == 20 )
-		{ printf( "BBREAAAKK!!" ); }
 	}
 }
 
@@ -156,7 +153,7 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 
 		// add to the correct cell
 		int i = CalculateGridCellIndex( ix, iy, iz );
-		printf( "ix: %i, iy: %i, iz: %i, i: %i\r\n", ix, iy, iz, i );
+		//printf( "ix: %i, iy: %i, iz: %i, i: %i\r\n", ix, iy, iz, i );
 		GridCell *cell = &cells[i];
 		cell->AddBoid( b );
 	}
