@@ -1,7 +1,7 @@
 #include "precomp.h"
 
 // represents the number of boids.
-const int COUNT = 1500;
+const int COUNT = 20000;
 
 Scenario *scenario;
 
