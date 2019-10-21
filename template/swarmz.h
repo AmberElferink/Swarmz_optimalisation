@@ -34,9 +34,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include <atomic> //for atomic inc
+#include <atomic>
 
 #define PI2 6.28318530717958647692
+#define NUMBER_OF_ELEMENTS_IN_CELL 50
 
 namespace sw
 {
@@ -62,6 +63,11 @@ struct Vec3
 	float DistanceTo( const Vec3 &other ) const
 	{
 		return std::sqrt( std::pow( other.X - X, 2 ) + std::pow( other.Y - Y, 2 ) + std::pow( other.Z - Z, 2 ) );
+	}
+
+	float DistanceToSqr( const Vec3 &other ) const
+	{
+		return std::pow( other.X - X, 2 ) + std::pow( other.Y - Y, 2 ) + std::pow( other.Z - Z, 2 );
 	}
 
 	float Length() const
@@ -168,8 +174,6 @@ struct Vec3Hasher
 	}
 };
 
-
-
 struct Boid
 {
   public:
@@ -179,13 +183,19 @@ struct Boid
 
 	int id;
 
-	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
+	Boid()
 	{
-		id = boidCounter++;
+		Position = Vec3( 0 );
+		Velocity = Vec3( 0 );
+		Acceleration = Vec3( 0 );
+
+		id = 0;
 	}
 
-  private:
-	static atomic<int> boidCounter;
+	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
+	{
+		id = 0;
+	}
 };
 
 struct NearbyBoid
@@ -193,6 +203,69 @@ struct NearbyBoid
 	Boid *boid;
 	Vec3 direction;
 	float distance;
+};
+
+struct GridCell
+{
+  public:
+	// the default constructor :))
+	GridCell();
+
+	// the buffer for the boids in this cell.
+	Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
+
+	// the number of boids in this cell.
+	int count;
+
+	// Adds the given boid to this cell. If
+	// the cell is full, a random boid is
+	// evicted.
+	void AddBoid( const Boid &b );
+
+	// 'Clears'  this
+	void Clear();
+};
+
+class Grid
+{
+
+  public:
+	// represents the number of columns / rows.
+	int xcells, ycells, zcells;
+
+	// represents the boundingbox.
+	Vec3 min, max;
+
+	// regular constructor / deconstructor
+	Grid( int xcells, int ycells, int zcells );
+	~Grid();
+
+	inline int CalculateGridCellIndex( int celX, int celY, int celZ );
+	inline bool CheckInsideGrid( int celX, int celY, int celZ );
+
+	void ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ );
+
+	// constructs the grid. If no min / max
+	// is provided the bounding box will be
+	// computed dynamically.
+	void ConstructGrid( const vector<Boid> &b );
+	void ConstructGrid( Vec3 min, Vec3 max, const vector<Boid> &b );
+
+	// queries the grid, stores the result in
+	// the out vector. Take note: reuse the vector.
+	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int celX, int celY, int celZ );
+
+  private:
+	GridCell *cells;
+
+	// computes the bounding box, dynamically.
+	void ComputeBoundingBox( const vector<Boid> &b );
+
+	// stores all boids in their corresponding cells.
+	void StoreInCells( const vector<Boid> &b );
+
+	// reorders the data to make it more cache-friendly.
+	void ReorderData();
 };
 
 class Swarm
@@ -223,6 +296,8 @@ class Swarm
 	{
 		std::random_device rd;
 		eng = std::mt19937( rd() );
+
+		grid = new Grid( 20, 20, 20 );
 	}
 
 	void Update( float delta )
@@ -238,6 +313,8 @@ class Swarm
 
 	void UpdateAcceleration()
 	{
+		grid->ConstructGrid( (*boids) );
+
 		if ( PerceptionRadius == 0 )
 		{
 			PerceptionRadius = 1;
@@ -262,6 +339,7 @@ class Swarm
 	}
 
   private:
+	Grid* grid;
 	std::vector<Boid> *boids;
 	std::unordered_map<Vec3, std::vector<Boid *>, Vec3Hasher> voxelCache;
 	std::mt19937 eng;
@@ -276,12 +354,15 @@ class Swarm
 #ifdef DEBUG_PERFORMANCE
 		tGetNearbyBoids->Start();
 #endif
-		auto nearby = getNearbyBoids( b );
+
+		auto vnb = getNearbyBoids( b );
+
+
 #ifdef DEBUG_PERFORMANCE
 		tGetNearbyBoids->Stop();
 #endif
 
-		for ( NearbyBoid &closeBoid : nearby )
+		for ( NearbyBoid &closeBoid : vnb )
 		{
 			if ( closeBoid.distance == 0 )
 			{
@@ -309,13 +390,13 @@ class Swarm
 		}
 
 		// Separation: steer to avoid crowding local flockmates
-		Vec3 separation = nearby.size() > 0 ? separationSum / nearby.size() : separationSum;
+		Vec3 separation = vnb.size() > 0 ? separationSum / vnb.size() : separationSum;
 
 		// Alignment: steer towards the average heading of local flockmates
-		Vec3 alignment = nearby.size() > 0 ? headingSum / nearby.size() : headingSum;
+		Vec3 alignment = vnb.size() > 0 ? headingSum / vnb.size() : headingSum;
 
 		// Cohesion: steer to move toward the average position of local flockmates
-		Vec3 avgPosition = nearby.size() > 0 ? positionSum / nearby.size() : b.Position;
+		Vec3 avgPosition = vnb.size() > 0 ? positionSum / vnb.size() : b.Position;
 		Vec3 cohesion = avgPosition - b.Position;
 
 		// Steering: steer towards the nearest target location (like a moth to the light)
@@ -332,30 +413,25 @@ class Swarm
 
 	std::vector<NearbyBoid> getNearbyBoids( const Boid &b ) const
 	{
-		std::vector<NearbyBoid> result;
+		vector<NearbyBoid> vnb;
 
-		Vec3 voxelPos = getVoxelForBoid( b );
+		// retrieve the index
+		int ix, iy, iz;
+		grid->ComputeGridIndex( b, ix, iy, iz );
 
-		voxelPos.X -= 1;
-		voxelPos.Y -= 1;
-		voxelPos.Z -= 1;
-
-		for ( int x = 0; x < 3; x++ )
+		// loop over 'dem shizzles
+		for ( int x = ix -1; x < ix +1; x++ )
 		{
-			for ( int y = 0; y < 3; y++ )
+			for ( int y = iy -1; y < iy + 1; y++ )
 			{
-				for ( int z = 0; z < 3; z++ )
+				for ( int z = iz -1; z < iz + 1; z++ )
 				{
-					checkVoxelForBoids( b, result, voxelPos );
-					voxelPos.Z++;
+					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x,y,z );
 				}
-				voxelPos.Z -= 3;
-				voxelPos.Y++;
 			}
-			voxelPos.Y -= 3;
-			voxelPos.X++;
 		}
-		return result;
+
+		return vnb;
 	}
 
 	void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const

@@ -21,7 +21,7 @@
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <SpectreMitigation>false</SpectreMitigation>
@@ -125,7 +125,6 @@
   <ItemGroup>
     <ClCompile Include="game.cpp" />
     <ClCompile Include="Graph.cpp" />
-    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="lib\imgui\examples\imgui_impl_sdl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -152,6 +151,7 @@
     </ClCompile>
     <ClCompile Include="Scenario.cpp" />
     <ClCompile Include="surface.cpp" />
+    <ClCompile Include="swarmz.cpp" />
     <ClCompile Include="template.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -159,7 +159,6 @@
   <ItemGroup>
     <ClInclude Include="game.h" />
     <ClInclude Include="Graph.h" />
-    <ClInclude Include="Grid.h" />
     <ClInclude Include="lib\imgui\examples\imgui_impl_sdl.h" />
     <ClInclude Include="lib\imgui\imconfig.h" />
     <ClInclude Include="lib\imgui\imgui.h" />
