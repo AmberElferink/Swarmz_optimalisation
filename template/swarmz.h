@@ -34,6 +34,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <atomic> //for atomic inc
+
 #define PI2 6.28318530717958647692
 
 namespace sw
@@ -166,16 +168,27 @@ struct Vec3Hasher
 	}
 };
 
+
+
 struct Boid
 {
+  public:
 	Vec3 Position;
 	Vec3 Velocity;
 	Vec3 Acceleration;
 
+	int id;
+
 	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
 	{
+		id = boidCounter++;
 	}
+
+  private:
+	static atomic<int> boidCounter;
 };
+
+atomic<int> Boid::boidCounter = 0;
 
 struct NearbyBoid
 {
