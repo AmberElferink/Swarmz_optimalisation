@@ -230,26 +230,32 @@ class Grid
 {
 
   public:
-	// represents the number of columns / rows.
-	int xcells, ycells, zcells;
+	// represents the number of cells in the
+	// given dimension.
+	int nx, ny, nz;
 
-	// represents the boundingbox.
+	// represents the boundingbox of the grid.
 	Vec3 min, max;
 
 	// regular constructor / deconstructor
-	Grid( int xcells, int ycells, int zcells );
+	Grid( int nx, int ny, int nz );
 	~Grid();
 
-	inline int CalculateGridCellIndex( int celX, int celY, int celZ );
-	inline bool CheckInsideGrid( int celX, int celY, int celZ );
+	// computes the index to use for within the grid.
+	inline int CalculateGridCellIndex( int ix, int iy, int iz );
 
-	void ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ );
+	// computes whether all the provided indices are within the grid.
+	inline bool CheckInsideGrid( int ix, int iy, int iz );
+
+	// computes the indices for all dimensions.
+	void ComputeGridIndex( const Boid &b, int &ix, int &iy, int &iz );
+
+
 
 	// constructs the grid. If no min / max
 	// is provided the bounding box will be
 	// computed dynamically.
 	void ConstructGrid( const vector<Boid> &b );
-	void ConstructGrid( Vec3 min, Vec3 max, const vector<Boid> &b );
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
@@ -258,14 +264,14 @@ class Grid
   private:
 	GridCell *cells;
 
+	// clears out the grid.
+	void ClearGrid();
+
 	// computes the bounding box, dynamically.
 	void ComputeBoundingBox( const vector<Boid> &b );
 
 	// stores all boids in their corresponding cells.
 	void StoreInCells( const vector<Boid> &b );
-
-	// reorders the data to make it more cache-friendly.
-	void ReorderData();
 };
 
 class Swarm
@@ -297,7 +303,7 @@ class Swarm
 		std::random_device rd;
 		eng = std::mt19937( rd() );
 
-		grid = new Grid( 20, 20, 20 );
+		grid = new Grid( 5, 5, 5 );
 	}
 
 	void Update( float delta )
@@ -313,7 +319,7 @@ class Swarm
 
 	void UpdateAcceleration()
 	{
-		grid->ConstructGrid( (*boids) );
+
 
 		if ( PerceptionRadius == 0 )
 		{
@@ -323,7 +329,7 @@ class Swarm
 #ifdef DEBUG_PERFORMANCE
 		tBuildVoxelCache->Start();
 #endif
-		buildVoxelCache();
+		grid->ConstructGrid( ( *boids ) );
 #ifdef DEBUG_PERFORMANCE
 		tBuildVoxelCache->StopAndStore();
 #endif
@@ -341,7 +347,7 @@ class Swarm
   private:
 	Grid* grid;
 	std::vector<Boid> *boids;
-	std::unordered_map<Vec3, std::vector<Boid *>, Vec3Hasher> voxelCache;
+	//std::unordered_map<Vec3, std::vector<Boid *>, Vec3Hasher> voxelCache;
 	std::mt19937 eng;
 
 	void updateBoid( Boid &b )
@@ -434,39 +440,39 @@ class Swarm
 		return vnb;
 	}
 
-	void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
-	{
-		auto iter = voxelCache.find( voxelPos );
-		if ( iter != voxelCache.end() )
-		{
-			for ( Boid *test : iter->second )
-			{
-				const Vec3 &p1 = b.Position;
-				const Vec3 &p2 = test->Position;
-				Vec3 vec = p2 - p1;
-				float distance = vec.Length();
-				float blindAngle = b.Velocity.Negative().AngleTo( vec );
-				if ( ( &b ) != test && distance <= PerceptionRadius && ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 ) )
-				{
-					NearbyBoid nb;
-					nb.boid = test;
-					nb.distance = distance;
-					nb.direction = vec;
-					result.push_back( nb );
-				}
-			}
-		}
-	}
+	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
+	//{
+	//	auto iter = voxelCache.find( voxelPos );
+	//	if ( iter != voxelCache.end() )
+	//	{
+	//		for ( Boid *test : iter->second )
+	//		{
+	//			const Vec3 &p1 = b.Position;
+	//			const Vec3 &p2 = test->Position;
+	//			Vec3 vec = p2 - p1;
+	//			float distance = vec.Length();
+	//			float blindAngle = b.Velocity.Negative().AngleTo( vec );
+	//			if ( ( &b ) != test && distance <= PerceptionRadius && ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 ) )
+	//			{
+	//				NearbyBoid nb;
+	//				nb.boid = test;
+	//				nb.distance = distance;
+	//				nb.direction = vec;
+	//				result.push_back( nb );
+	//			}
+	//		}
+	//	}
+	//}
 
-	void buildVoxelCache()
-	{
-		voxelCache.clear();
-		voxelCache.reserve( boids->size() );
-		for ( auto &b : *boids )
-		{
-			voxelCache[getVoxelForBoid( b )].push_back( &b );
-		}
-	}
+	//void buildVoxelCache()
+	//{
+	//	voxelCache.clear();
+	//	voxelCache.reserve( boids->size() );
+	//	for ( auto &b : *boids )
+	//	{
+	//		voxelCache[getVoxelForBoid( b )].push_back( &b );
+	//	}
+	//}
 
 	Vec3 getVoxelForBoid( const Boid &b ) const
 	{

@@ -4,96 +4,113 @@
 #include "Grid.h"
 #include "precomp.h"
 
-Grid::Grid( int xcells, int ycells, int zcells )
+Grid::Grid( int nx, int ny, int nz )
 {
-	( *this ).xcells = xcells;
-	( *this ).ycells = ycells;
-	( *this ).zcells = zcells;
+	// receive 'dem dimensions.
+	( *this ).nx = nx;
+	( *this ).ny = ny;
+	( *this ).nz = nz;
 
-	( *this ).cells = new GridCell[xcells * ycells * zcells];
+	( *this ).cells = new GridCell[nx * ny * nz];
 }
 
 Grid::~Grid()
 {
+	// huuurrrrr!
 	delete cells;
 }
 
-inline int Grid::CalculateGridCellIndex( int celX, int celY, int celZ )
+inline int Grid::CalculateGridCellIndex( int ix, int iy, int iz )
 {
-	return celX + celY * xcells + celZ * ( xcells * ycells );
+	// compute the right index. Take note: this function
+	// is inline. It will be placed in the code.
+	return ix + iy * nx + iz * ( nx * ny );
 }
 
-inline bool Grid::CheckInsideGrid( int celX, int celY, int celZ )
+inline bool Grid::CheckInsideGrid( int ix, int iy, int iz )
 {
-	if ( celX < 0 || celX >= xcells )
+	// check for all dimensions whether it's
+	// within the grid.
+	if ( ix < 0 || ix >= nx )
 		return false;
-	if ( celY < 0 || celY >= ycells )
+	if ( iy < 0 || iy >= ny )
 		return false;
-	if ( celZ < 0 || celZ >= zcells )
+	if ( iz < 0 || iz >= nz )
 		return false;
 
 	return true;
 }
 
-void Grid::ConstructGrid( const vector<Boid> &b )
+void sw::Grid::ClearGrid()
 {
-	int l = xcells * ycells * zcells;
+	// compute the total number of cells.
+	int l = nx * ny * nz;
 
+	// for every cell, clear it out.
 	for ( int j = 0; j < l; j++ )
-	{
 		cells[j].Clear();
-	}
-
-	ComputeBoundingBox( b );
-	StoreInCells( b );
-	ReorderData();
 }
 
-void Grid::ConstructGrid( Vec3 min, Vec3 max, const vector<Boid> &b )
+void Grid::ConstructGrid( const vector<Boid> &b )
 {
-	( *this ).min = min;
-	( *this ).max = max;
+	// clear out the grid of any
+	// previous usage
+	ClearGrid();
 
+	// compute the bounding box
+	ComputeBoundingBox( b );
+
+	// store the data
 	StoreInCells( b );
-	ReorderData();
-	throw new exception( "unimplemented" );
 }
 
 void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int celX, int celY, int celZ )
 {
+	// if the location is not inside
+	// the grid, skip it.
 	if ( !CheckInsideGrid( celX, celY, celZ ) )
 		return;
 
+	// retrieve the cell
 	GridCell gridCell = cells[CalculateGridCellIndex( celX, celY, celZ )];
 
+	// do cell computations, this is copied (for now)
+	// - fix expensive operations
+	// - apply if statements sooner (e.g., compute 
+	// distance -> check, compute angle -> check, 
+	// etc), allows for early-opt out.
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
 		//compute distance between b and test
-		Boid test = gridCell.boids[i];
+		Boid target = gridCell.boids[i];
 		const Vec3 &p1 = b.Position;
-		const Vec3 &p2 = test.Position;
+		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
 		float distance = vec.Length();
 		float blindAngle = b.Velocity.Negative().AngleTo( vec );
-		if (
-			b.Position.DistanceToSqr( test.Position ) < 0.0001f &&			  // check if they are the same or not ( todo: check on some id)
-			distance <= PerceptionRadius &&									  // check if the distance is nearby enough
-			( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 ) ) // check if we can 'see it'
+		// check if they are the same or not ( todo: this is broken at this point)
+		if ( b.Position.DistanceToSqr( target.Position ) > 0.0001f )
 		{
-			NearbyBoid nb;
-			nb.boid = &test;
-			nb.distance = distance;
-			nb.direction = vec;
-			out.push_back( nb );
+			// check if the distance is nearby enough
+			if ( distance <= PerceptionRadius )
+			{
+				// check if we can 'see it'
+				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 )
+				{
+					NearbyBoid nb;
+					nb.boid = &target;
+					nb.distance = distance;
+					nb.direction = vec;
+					out.push_back( nb );
+				}
+			}
 		}
-
-		//compute the angle between b and test
-		// if both okay, add to vector (and length == 0 to see if the boid is standing still and can look around)
 	}
 }
 
 void Grid::ComputeBoundingBox( const vector<Boid> &b )
 {
+	// default values
 	float minX = FLT_MAX;
 	float maxX = -FLT_MAX;
 	float minY = FLT_MAX;
@@ -101,6 +118,11 @@ void Grid::ComputeBoundingBox( const vector<Boid> &b )
 	float minZ = FLT_MIN;
 	float maxZ = -FLT_MAX;
 
+	// loop over the boids to find
+	// the actual value's.
+
+	// todo: use SOA and SiMD instructions
+	// to prevent branching.
 	for ( int i = 0; i < b.size(); i++ )
 	{
 		if ( b[i].Position.X < minX ) minX = b[i].Position.X;
@@ -110,35 +132,44 @@ void Grid::ComputeBoundingBox( const vector<Boid> &b )
 		if ( b[i].Position.Z < minZ ) minZ = b[i].Position.Z;
 		if ( b[i].Position.Z > maxZ ) maxZ = b[i].Position.Z;
 	}
+
+	// store the final min / max values.
 	( *this ).min = Vec3( minX, minY, minZ );
 	( *this ).max = Vec3( maxX, maxY, maxZ );
 }
 
 void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 {
+	// place the boid into 'grid-space'
+	Vec3 boidPosRelative = b.Position - min;
+
+	// on default, we take the 0'th index
+	// this happens if one of the dimensions
+	// is not being used.
 	celX = 0;
 	celY = 0;
 	celZ = 0;
 
-	Vec3 boidPosRelative = b.Position - min;
-	float sizeX = max.X - min.X;
-	if ( abs( sizeX ) >= 0.0001f )
+	// compute the grid-space of the grid
+	// hurr
+	Vec3 gridExtend = max - min;
+
+	// check if the dimension is not 'flat'.
+	if ( abs( gridExtend.X ) >= 0.0001f )
 	{
-		float cellSizeX = sizeX / ( xcells - 1 );
+		float cellSizeX = gridExtend.X / ( nx - 1 );
 		celX = (int)( boidPosRelative.X / cellSizeX );
 	}
 
-	float sizeY = max.Y - min.Y;
-	if ( abs( sizeY ) >= 0.0001f )
+	if ( abs( gridExtend.Y ) >= 0.0001f )
 	{
-		float cellSizeY = sizeY / (ycells - 1);
+		float cellSizeY = gridExtend.Y / ( ny - 1 );
 		celY = (int)( boidPosRelative.Y / cellSizeY );
 	}
 
-	float sizeZ = max.Z - min.Z;
-	if ( abs( sizeZ ) >= 0.0001f )
+	if ( abs( gridExtend.Z ) >= 0.0001f )
 	{
-		float cellSizeZ = sizeZ / (zcells - 1);
+		float cellSizeZ = gridExtend.Z / ( nz - 1 );
 		celZ = (int)( boidPosRelative.Z / cellSizeZ );
 	}
 }
@@ -154,14 +185,8 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 		// add to the correct cell
 		int i = CalculateGridCellIndex( ix, iy, iz );
 		//printf( "ix: %i, iy: %i, iz: %i, i: %i\r\n", ix, iy, iz, i );
-		GridCell *cell = &cells[i];
-		cell->AddBoid( b );
+		cells[i].AddBoid( b );
 	}
-}
-
-void Grid::ReorderData()
-{
-	// todo: reorder the data to make it more friendly.
 }
 
 GridCell::GridCell()
@@ -171,18 +196,21 @@ GridCell::GridCell()
 
 void GridCell::AddBoid( const Boid &b )
 {
-	if ( count >= NUMBER_OF_ELEMENTS_IN_CELL )
-	{
-		//eventueel random evicten
-	}
-	else
+	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
 	{
 		boids[count] = b;
 		count++;
+	}
+	else
+	{
+		// multiple policies available:
+		// - do nothing (lose the boid)
+		// - evict with any cache eviction policy, RR preferred
 	}
 }
 
 void GridCell::Clear()
 {
+	// best clear evor.
 	count = 0;
 }
