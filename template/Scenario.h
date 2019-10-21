@@ -20,10 +20,11 @@ class Scenario
 	float camera_y = 0;
 	float camera_speed = 5.0f;
 
+  public:
+
 	// represents the swarm
 	Swarm *swarm;
 
-  public:
 	float camera_scale = 1.0f;
 	float camera_scale_min = 0.1f;
 	float camera_scale_max = 10.0f;

@@ -25,6 +25,13 @@ void DrawGUI()
 		{
 			scenario->ChangeScale( camera_scale );
 		}
+
+		ImGui::SliderFloat( "Weight alignment", &scenario->swarm->AlignmentWeight, 0, 10 );
+		ImGui::SliderFloat( "Weight separation", &scenario->swarm->SeparationWeight, 0, 10 );
+		ImGui::SliderFloat( "Weight cohesion", &scenario->swarm->CohesionWeight, 0, 10 );
+		ImGui::SliderFloat( "Weight target", &scenario->swarm->SteeringWeight, 0, 10 );
+		ImGui::SliderFloat( "Blindspotangle (degrees)", &scenario->swarm->BlindspotAngleDeg, 1, 180 );
+		ImGui::SliderFloat( "Perception radius", &scenario->swarm->PerceptionRadius, 1, 100 );
 	}
 
 	if ( ImGui::CollapsingHeader( "Statistics", ImGuiTreeNodeFlags_DefaultOpen ) )
@@ -49,7 +56,7 @@ void DrawGUI()
 						0.25f * graphTotal.m_graphData[graphTotal.m_graphWidth - 2] +
 						0.15f * graphTotal.m_graphData[graphTotal.m_graphWidth - 3] +
 						0.10f * graphTotal.m_graphData[graphTotal.m_graphWidth - 4];
-		snprintf( buffer, sizeof( buffer ), "Current: %7.4f", current);
+		snprintf( buffer, sizeof( buffer ), "Current: %7.4f", current );
 		ImGui::Text( buffer );
 
 		snprintf( buffer, sizeof( buffer ), "Recent               /         Overall " );
