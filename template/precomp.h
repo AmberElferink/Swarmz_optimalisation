@@ -69,6 +69,8 @@
 // C++ practice but a mere simplification for this small project.
 using namespace std;
 
+#include "Statistics.h"
+
 #include "swarmz.h"
 using namespace sw;
 

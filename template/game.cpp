@@ -1,14 +1,17 @@
 #include "precomp.h"
 
 // represents the number of boids.
-const int COUNT = 200;
+const int COUNT = 1000;
 
 Scenario *scenario;
 
 //new graphs will automatically be added to graphs
 vector<Graph *> graphs;
+Graph g0( "total loop", 100, 0x00ff0000, 0, 100 );
 Graph g1( "boids loop", 100, 0x00FF0000, 0, 100 );
 Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
+
+float min_global, max_global;
 
 void DrawGUI()
 {
@@ -18,11 +21,43 @@ void DrawGUI()
 	if ( ImGui::CollapsingHeader( "Controls", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
 		float camera_scale = scenario->camera_scale;
-		if (ImGui::SliderFloat("zoom level", &camera_scale, scenario->camera_scale_min, scenario->camera_scale_max))
+		if ( ImGui::SliderFloat( "zoom level", &camera_scale, scenario->camera_scale_min, scenario->camera_scale_max ) )
 		{
 			scenario->ChangeScale( camera_scale );
 		}
 	}
+
+	if ( ImGui::CollapsingHeader( "Statistics", ImGuiTreeNodeFlags_DefaultOpen ) )
+	{
+		float min, max, avg, std;
+		min = minimum( g0.m_graphData, 100 );
+		max = maximum( g0.m_graphData, 100 );
+		avg = average( g0.m_graphData, 100 );
+		std = stdev( g0.m_graphData, 100 );
+
+		if ( min_global > min )
+			min_global = min;
+
+		if ( max_global < max )
+			max_global = max;
+
+		char buffer[40];
+		snprintf( buffer, sizeof( buffer ), "Recent / overall performance measurements (in ms)" );
+		ImGui::Text( buffer );
+
+		snprintf( buffer, sizeof( buffer ), "min: %7.4f         /         min: %7.4f", min, min_global );
+		ImGui::Text( buffer );
+
+		snprintf( buffer, sizeof( buffer ), "max: %7.4f         /         max: %7.4f", max,  max_global );
+		ImGui::Text( buffer );
+
+		snprintf( buffer, sizeof( buffer ), "avg: %7.4f", avg );
+		ImGui::Text( buffer );
+
+		snprintf( buffer, sizeof( buffer ), "std: %7.4f", std );
+		ImGui::Text( buffer );
+	}
+
 	//TreeNodeEx gives indent
 	if ( ImGui::CollapsingHeader( "Graphs", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
@@ -82,6 +117,7 @@ void Game::MouseDown( int key )
 // -----------------------------------------------------------
 void Game::Tick( float deltaTime )
 {
+	g0.Start();
 	g1.Start();
 	scenario->Update( deltaTime * 0.01f );
 	g2.Start();
@@ -89,6 +125,7 @@ void Game::Tick( float deltaTime )
 
 	g2.StopAndStore();
 	g1.StopAndStore();
+	g0.StopAndStore();
 
 	DrawGUI();
 }
