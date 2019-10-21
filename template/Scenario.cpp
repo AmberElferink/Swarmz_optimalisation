@@ -33,6 +33,8 @@ void Scenario::Draw( Surface *screen )
 	{
 		if ( b.numberOfNearbyBoids > maximumNearbyBoids )
 			maximumNearbyBoids = b.numberOfNearbyBoids;
+
+		printf( "%i ", b.numberOfNearbyBoids );
 	}
 
 	printf( "Maximum: %i\r\n", maximumNearbyBoids );
