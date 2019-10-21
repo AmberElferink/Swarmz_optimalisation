@@ -1,15 +1,15 @@
 #include "precomp.h"
 
 // represents the number of boids.
-const int COUNT = 1000;
+const int COUNT = 2000;
 
 Scenario *scenario;
 
 //new graphs will automatically be added to graphs
 vector<Graph *> graphs;
-Graph g0( "total loop", 100, 0x00ff0000, 0, 100 );
-Graph g1( "boids loop", 100, 0x00FF0000, 0, 100 );
-Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
+Graph graphTotal( "total loop", 100, 0x00ff0000, 0, 100 );
+Graph graphUpdate( "boids loop", 100, 0x00FF0000, 0, 100 );
+Graph graphDraw( "boids draw loop", 100, 0x00FF0000, 0, 10 );
 
 float min_global, max_global;
 
@@ -30,10 +30,10 @@ void DrawGUI()
 	if ( ImGui::CollapsingHeader( "Statistics", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
 		float min, max, avg, std;
-		min = minimum( g0.m_graphData, 100 );
-		max = maximum( g0.m_graphData, 100 );
-		avg = average( g0.m_graphData, 100 );
-		std = stdev( g0.m_graphData, 100 );
+		min = minimum( graphTotal.m_graphData, 100 );
+		max = maximum( graphTotal.m_graphData, 100 );
+		avg = average( graphTotal.m_graphData, 100 );
+		std = stdev( graphTotal.m_graphData, 100 );
 
 		if ( min_global > min )
 			min_global = min;
@@ -41,14 +41,24 @@ void DrawGUI()
 		if ( max_global < max )
 			max_global = max;
 
-		char buffer[40];
-		snprintf( buffer, sizeof( buffer ), "Recent / overall performance measurements (in ms)" );
+		char buffer[50];
+		snprintf( buffer, sizeof( buffer ), "Performance measurements (in ms)" );
+		ImGui::Text( buffer );
+
+		float current = 0.50f * graphTotal.m_graphData[graphTotal.m_graphWidth - 1] +
+						0.25f * graphTotal.m_graphData[graphTotal.m_graphWidth - 2] +
+						0.15f * graphTotal.m_graphData[graphTotal.m_graphWidth - 3] +
+						0.10f * graphTotal.m_graphData[graphTotal.m_graphWidth - 4];
+		snprintf( buffer, sizeof( buffer ), "Current: %7.4f", current);
+		ImGui::Text( buffer );
+
+		snprintf( buffer, sizeof( buffer ), "Recent               /         Overall " );
 		ImGui::Text( buffer );
 
 		snprintf( buffer, sizeof( buffer ), "min: %7.4f         /         min: %7.4f", min, min_global );
 		ImGui::Text( buffer );
 
-		snprintf( buffer, sizeof( buffer ), "max: %7.4f         /         max: %7.4f", max,  max_global );
+		snprintf( buffer, sizeof( buffer ), "max: %7.4f         /         max: %7.4f", max, max_global );
 		ImGui::Text( buffer );
 
 		snprintf( buffer, sizeof( buffer ), "avg: %7.4f", avg );
@@ -63,13 +73,10 @@ void DrawGUI()
 	{
 		for ( int i = 0; i < graphs.size(); i++ )
 		{
-			char gNr[3];
-			snprintf( gNr, sizeof( gNr ), "g%i", i );
-			//(sc = 100ms)
 			char title[40];
-			snprintf( title, sizeof( title ), "%s(scale=%.1fms)", graphs[i]->m_name, graphs[i]->m_scaleMax );
+			snprintf( title, sizeof( title ), "%s (scale = %.1fms)", graphs[i]->m_name, graphs[i]->m_scaleMax );
 			if ( graphs[i]->m_showGraph )
-				ImGui::PlotHistogram( gNr, graphs[i]->m_graphData, graphs[i]->m_graphWidth, 0, title, graphs[i]->m_scaleMin, graphs[i]->m_scaleMax, ImVec2( 0, 80 ) );
+				ImGui::PlotHistogram( "", graphs[i]->m_graphData, graphs[i]->m_graphWidth, 0, title, graphs[i]->m_scaleMin, graphs[i]->m_scaleMax, ImVec2( 0, 80 ) );
 		}
 	}
 }
@@ -117,15 +124,15 @@ void Game::MouseDown( int key )
 // -----------------------------------------------------------
 void Game::Tick( float deltaTime )
 {
-	g0.Start();
-	g1.Start();
+	graphTotal.Start();
+	graphUpdate.Start();
 	scenario->Update( deltaTime * 0.01f );
-	g2.Start();
+	graphDraw.Start();
 	scenario->Draw( screen );
 
-	g2.StopAndStore();
-	g1.StopAndStore();
-	g0.StopAndStore();
+	graphDraw.StopAndStore();
+	graphUpdate.StopAndStore();
+	graphTotal.StopAndStore();
 
 	DrawGUI();
 }

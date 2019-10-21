@@ -147,7 +147,11 @@ namespace sw {
         Vec3 Velocity;
         Vec3 Acceleration;
 
-        explicit Boid(Vec3 pos, Vec3 vel) : Position(pos), Velocity(vel) {
+		int numberOfNearbyBoids;
+
+        explicit Boid(Vec3 pos, Vec3 vel) : Position(pos), Velocity(vel) 
+		{
+			numberOfNearbyBoids = 0;
         }
     };
 
@@ -211,6 +215,7 @@ namespace sw {
             Vec3 po = b.Position;
 
             auto nearby = getNearbyBoids(b);
+			b.numberOfNearbyBoids = nearby.size();
 
             for (NearbyBoid &closeBoid : nearby) {
                 if (closeBoid.distance == 0) {
