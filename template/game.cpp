@@ -1,13 +1,13 @@
 #include "precomp.h"
 
 // represents the number of boids.
-const int COUNT = 200;
+const int COUNT = 20000;
 
 Scenario *scenario;
 
 //new graphs will automatically be added to graphs
 vector<Graph *> graphs;
-Graph g1( "boids loop", 100, 0x00FF0000, 0, 100 );
+Graph g1( "boids loop", 100, 0x00FF0000, 0, 900 );
 Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
 
 void DrawGUI()
@@ -46,6 +46,10 @@ void Game::Init()
 {
 	scenario = new ScenarioCircle();
 	scenario->Init( COUNT );
+	//for ( int i = 0; i < 360; i++ )
+	//{
+	//	printf("%i, ", ( std::acos( (float)i * 180.0f / PI ) ));
+	//}
 }
 
 void Game::KeyDown( SDL_Scancode key )
