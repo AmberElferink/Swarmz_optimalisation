@@ -10,6 +10,19 @@ vector<Graph *> graphs;
 Graph g1( "boids loop", 100, 0x00FF0000, 0, 900 );
 Graph g2( "boids draw loop", 100, 0x00FF0000, 0, 1 );
 
+//this was used to generate the hardcoded lookup table
+void GenerateLookupTable()
+{
+	float acos[256];
+	//input of acos is between -1 and 1.
+	for (int i = 0; i < 256; i++) //this is dividing the cirlce in 256 pieces instead of 360. It's faster since it's a power of two.				//std::acos(  ) ;
+	{
+		acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 );
+		printf( "%f, ", acos[i] );
+	}
+	int y = 0;
+}
+
 void DrawGUI()
 {
 	//ImGui::ShowDemoWindow();
@@ -18,7 +31,7 @@ void DrawGUI()
 	if ( ImGui::CollapsingHeader( "Controls", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
 		float camera_scale = scenario->camera_scale;
-		if (ImGui::SliderFloat("zoom level", &camera_scale, scenario->camera_scale_min, scenario->camera_scale_max))
+		if ( ImGui::SliderFloat( "zoom level", &camera_scale, scenario->camera_scale_min, scenario->camera_scale_max ) )
 		{
 			scenario->ChangeScale( camera_scale );
 		}
@@ -46,10 +59,6 @@ void Game::Init()
 {
 	scenario = new ScenarioCircle();
 	scenario->Init( COUNT );
-	//for ( int i = 0; i < 360; i++ )
-	//{
-	//	printf("%i, ", ( std::acos( (float)i * 180.0f / PI ) ));
-	//}
 }
 
 void Game::KeyDown( SDL_Scancode key )
