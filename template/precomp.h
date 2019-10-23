@@ -69,15 +69,17 @@
 // C++ practice but a mere simplification for this small project.
 using namespace std;
 
-#include "swarmz.h"
-using namespace sw;
+#include "Statistics.h"
 
-#include "surface.h"
 #include "template.h"
+#include "surface.h"
 
 using namespace Tmpl8;
 #include "Graph.h"
+#include "swarmz.h"
+
 #include "Scenario.h"
+
 
 #include "game.h"
 // clang-format on

@@ -1,4 +1,5 @@
 #include "precomp.h"
+using namespace sw;
 
 void Scenario::Update( float dt )
 {
@@ -10,10 +11,10 @@ void Scenario::Update( float dt )
 
 	// set the targets, update each boid
 	swarm->SteeringTargets = targets;
-	swarm->Update( dt );
+	swarm->Update( 0.05f );
 
 	// manually update the position
-	for ( Boid b : boids )
+	for ( Boid &b : boids )
 	{ b.Position += b.Velocity * dt; }
 }
 
@@ -27,18 +28,36 @@ void Scenario::Draw( Surface *screen )
 		camera_y + ( SCRHEIGHT >> 1 ),
 		0.0f );
 
+	// find the total number of nearby boids
+	int maximumNearbyBoids = 0;
+	for ( Boid &b : boids )
+	{
+		if ( b.numberOfNearbyBoids > maximumNearbyBoids )
+			maximumNearbyBoids = b.numberOfNearbyBoids;
+
+		//printf( "%i ", b.numberOfNearbyBoids );
+	}
+
+	//printf( "Maximum: %i\r\n", maximumNearbyBoids );
+
 	// draw each boid
-	for ( Boid b : boids )
+	for ( const Boid &b : boids )
 	{
 		// determine the plot positions
 		Vec3 plot_position = position + b.Position * camera_scale;
 		Vec3 plot_velocity = plot_position + b.Velocity.Normalized() * draw_velocity_distance;
 		Vec3 plot_acceleration = plot_velocity + b.Acceleration.Normalized() * draw_acceleration_distance;
 
+		// oh noes, a conversion!
+		float factor = ( (float)b.numberOfNearbyBoids / (maximumNearbyBoids + 1));
+		Pixel output = AddBlend(
+			ScaleColor( expensiveColor, ( factor ) * ( 255 ) ),
+			ScaleColor( cheapColor, ( 1.0f - factor ) * ( 255 ) ) );
+
 		// plottin' dem
-		screen->PlotSafe( plot_position.X, plot_position.Y, boidPosition );
-		screen->PlotSafe( plot_velocity.X, plot_velocity.Y, boidVelocity );
 		screen->PlotSafe( plot_acceleration.X, plot_acceleration.Y, boidAcceleration );
+		screen->PlotSafe( plot_velocity.X, plot_velocity.Y, boidVelocity );
+		screen->PlotSafe( plot_position.X, plot_position.Y, output );
 	}
 
 	// draw each target
@@ -72,7 +91,7 @@ void Scenario::ChangeScale( float scale )
 	camera_x *= factor;
 	camera_y *= factor;
 
-	printf( "Factor: %f \r\n", factor);
+	printf( "Factor: %f \r\n", factor );
 
 	// aaannnddd don't forget to update the scale
 	camera_scale = scale;
@@ -93,7 +112,7 @@ void ScenarioRandom::Init( int count )
 			0.0f );
 
 		Boid boid = Boid( pos, acc );
-		boids.push_back( boid );
+		boids.emplace_back( boid );
 	}
 
 	targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );

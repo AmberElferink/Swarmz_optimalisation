@@ -28,6 +28,8 @@
     </ClCompile>
     <ClCompile Include="Graph.cpp" />
     <ClCompile Include="Scenario.cpp" />
+    <ClCompile Include="Statistics.cpp" />
+    <ClCompile Include="swarmz.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
@@ -65,6 +67,7 @@
     </ClInclude>
     <ClInclude Include="Graph.h" />
     <ClInclude Include="Scenario.h" />
+    <ClInclude Include="Statistics.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">
