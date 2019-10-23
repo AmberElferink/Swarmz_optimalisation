@@ -86,25 +86,23 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
 
-
 		Vec3 distanceVec = p2 - p1;
 		float distance = distanceVec.Length();
-		Vec3 distanceVecNorm = distanceVec / distance;
-		//float dstSqr = b.Position.DistanceToSqr( p2 );
-
-		Vec3 bNegVelocity = b.Velocity.Negative();
-		float bNegVelocityLength = bNegVelocity.Length();
-
 
 
 		// check if they are the same or not ( todo: this is broken at this point)
-		if ( distance > 0.001f )
+		if ( distance > 0.00001f )
 		{
 			// check if the distance is nearby enough
 			if ( distance <= PerceptionRadius )
 			{
+				Vec3 distanceVecNorm = distanceVec / distance;
+
+				Vec3 bNegVelocity = b.Velocity.Negative();
+				float bNegVelocityLength = bNegVelocity.Length();
+
 				float blindAngle = 0;
-				if ( bNegVelocityLength > 0.000001f )
+				if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
 				{
 					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
 					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
