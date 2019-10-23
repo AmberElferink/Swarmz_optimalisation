@@ -231,9 +231,8 @@ void Game::Tick( float deltaTime )
 	graphDraw.Start();
 	scenario->Draw( screen );
 	scenario->swarm->grid->DrawGrid( screen, 0xffffff );
+	DrawGUI();
 	graphDraw.StopAndStore();
 
 	graphTotal.StopAndStore();
-
-	DrawGUI();
 }

@@ -13,7 +13,7 @@ void Scenario::Update( float dt )
 	swarm->Update( 0.05f );
 
 	// manually update the position
-	for ( Boid b : boids )
+	for ( Boid &b : boids )
 	{ b.Position += b.Velocity * dt; }
 }
 
@@ -29,7 +29,7 @@ void Scenario::Draw( Surface *screen )
 
 	// find the total number of nearby boids
 	int maximumNearbyBoids = 0;
-	for ( Boid b : boids )
+	for ( Boid &b : boids )
 	{
 		if ( b.numberOfNearbyBoids > maximumNearbyBoids )
 			maximumNearbyBoids = b.numberOfNearbyBoids;
@@ -40,7 +40,7 @@ void Scenario::Draw( Surface *screen )
 	//printf( "Maximum: %i\r\n", maximumNearbyBoids );
 
 	// draw each boid
-	for ( Boid b : boids )
+	for ( const Boid &b : boids )
 	{
 		// determine the plot positions
 		Vec3 plot_position = position + b.Position * camera_scale;
@@ -111,7 +111,7 @@ void ScenarioRandom::Init( int count )
 			0.0f );
 
 		Boid boid = Boid( pos, acc );
-		boids.push_back( boid );
+		boids.emplace_back( boid );
 	}
 
 	targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );
