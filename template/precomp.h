@@ -76,9 +76,8 @@ using namespace std;
 
 using namespace Tmpl8;
 #include "Graph.h"
-
 #include "swarmz.h"
-using namespace sw;
+
 #include "Scenario.h"
 
 

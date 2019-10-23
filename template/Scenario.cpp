@@ -1,4 +1,5 @@
 #include "precomp.h"
+using namespace sw;
 
 void Scenario::Update( float dt )
 {

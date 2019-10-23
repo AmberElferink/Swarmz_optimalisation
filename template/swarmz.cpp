@@ -1,8 +1,6 @@
 
 #include "precomp.h"
-
-#include "Grid.h"
-#include "precomp.h"
+using namespace sw;
 
 Grid::Grid( int nx, int ny, int nz )
 {
@@ -41,7 +39,7 @@ inline bool Grid::CheckInsideGrid( int ix, int iy, int iz )
 	return true;
 }
 
-void sw::Grid::ClearGrid()
+void Grid::ClearGrid()
 {
 	// compute the total number of cells.
 	int l = nx * ny * nz;
@@ -87,35 +85,52 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		const Boid &target = gridCell.boids[i];
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
-		Vec3 vec = p2 - p1;
-		float dstSqr = b.Position.DistanceToSqr( target.Position );
+
+
+		Vec3 distanceVec = p2 - p1;
+		float distance = distanceVec.Length();
+		Vec3 distanceVecNorm = distanceVec / distance;
+		//float dstSqr = b.Position.DistanceToSqr( p2 );
+
+		Vec3 bNegVelocity = b.Velocity.Negative();
+		float bNegVelocityLength = bNegVelocity.Length();
+
+		float blindAngle = 0;
+		if ( bNegVelocityLength > 0.000001f && distance > 0.000001f )
+		{
+			Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+			blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+		}
 
 		// check if they are the same or not ( todo: this is broken at this point)
-		if ( dstSqr > 0.0001f )
+		if ( distance > 0.001f )
 		{
 			// check if the distance is nearby enough
-			if ( dstSqr <= ( PerceptionRadius * PerceptionRadius ) )
+			if ( distance <= PerceptionRadius )
 			{
 
-				float blindAngle = b.Velocity.Negative().AngleTo( vec );
+				float blindAngle = b.Velocity.Negative().AngleTo( distanceVec );
 
 				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.DotProduct( b.Velocity ) == 0 )
+				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
 				{
 					NearbyBoid nb;
 					// was: nb.boid = &target
 					nb.boid = target;
-					nb.distance = sqrtf( dstSqr );
-					nb.direction = vec;
-					out.emplace_back( nb );
+					nb.distance = distance;
+					nb.direction = distanceVec;
+					out.emplace_back( nb ); //TODO dit is vaag, moet met mov toch?
 				}
 			}
 		}
 	}
 }
 
+
+
+
 // todo: remove this function
-void sw::Grid::DrawGrid( Surface *surface, Pixel density )
+void Grid::DrawGrid( Surface *surface, Pixel density )
 {
 	// find the maximum density over the z
 	// dimension

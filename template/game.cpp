@@ -1,4 +1,5 @@
 #include "precomp.h"
+using namespace sw;
 
 // represents the number of boids.
 const int COUNT = 20000;

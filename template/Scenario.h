@@ -17,7 +17,7 @@ class Scenario
 
   public:
 	// represents the swarm
-	Swarm *swarm;
+	sw::Swarm *swarm;
 
 	float camera_scale = 1.0f;
 	float camera_scale_min = 0.1f;
@@ -26,7 +26,7 @@ class Scenario
 
 	Scenario()
 	{
-		swarm = new Swarm( &boids );
+		swarm = new sw::Swarm( &boids );
 	}
 
 	~Scenario()
@@ -41,10 +41,10 @@ class Scenario
 	Pixel cheapColor = 0x0000ff;
 
 	// represents the various targets of the boids.
-	vector<Vec3> targets;
+	vector<sw::Vec3> targets;
 
 	// represents the boids.
-	vector<Boid> boids;
+	vector<sw::Boid> boids;
 
 	// prepares the scenario
 	virtual void Init( int count ) = 0;
