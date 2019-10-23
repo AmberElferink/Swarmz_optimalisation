@@ -15,7 +15,7 @@ void GenerateLookupTable()
 {
 	float acos[256];
 	//input of acos is between -1 and 1.
-	for (int i = 0; i < 256; i++) //this is dividing the cirlce in 256 pieces instead of 360. It's faster since it's a power of two.				//std::acos(  ) ;
+	for (int i = 0; i < 256; i++) //this is dividing the cirlce in 256 pieces instead of 360. It's faster since it's a power of two
 	{
 		acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 );
 		printf( "%f, ", acos[i] );
