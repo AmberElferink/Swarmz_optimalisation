@@ -11,7 +11,7 @@ Graph graphTotal( "total loop", 100, 0x00ff0000, 0, 100 );
 Graph graphUpdate( "boids loop", 100, 0x00FF0000, 0, 100 );
 Graph graphDraw( "boids draw loop", 100, 0x00FF0000, 0, 10 );
 
-bool paused = true;
+bool paused = false;
 bool step = false;
 float min_global, max_global;
 
@@ -25,6 +25,51 @@ void DrawGUI()
 
 	if ( ImGui::BeginTabBar( "##tabs", ImGuiTabBarFlags_None ) )
 	{
+
+				if ( ImGui::BeginTabItem( "Statistics" ) )
+		{
+			float min, max, avg, std;
+			min = minimum( graphTotal.m_graphData, 100 );
+			max = maximum( graphTotal.m_graphData, 100 );
+			avg = average( graphTotal.m_graphData, 100 );
+			std = stdev( graphTotal.m_graphData, 100 );
+
+			if ( min_global > min )
+				min_global = min;
+
+			if ( max_global < max )
+				max_global = max;
+
+			char buffer[50];
+			snprintf( buffer, sizeof( buffer ), "Performance measurements (in ms)" );
+			ImGui::Text( buffer );
+
+			float current = 0.50f * graphTotal.m_graphData[graphTotal.m_graphWidth - 1] +
+							0.25f * graphTotal.m_graphData[graphTotal.m_graphWidth - 2] +
+							0.15f * graphTotal.m_graphData[graphTotal.m_graphWidth - 3] +
+							0.10f * graphTotal.m_graphData[graphTotal.m_graphWidth - 4];
+
+			snprintf( buffer, sizeof( buffer ), "Current: %7.4f", current );
+			ImGui::Text( buffer );
+
+			snprintf( buffer, sizeof( buffer ), "Recent               /         Overall " );
+			ImGui::Text( buffer );
+
+			snprintf( buffer, sizeof( buffer ), "min: %7.4f         /         min: %7.4f", min, min_global );
+			ImGui::Text( buffer );
+
+			snprintf( buffer, sizeof( buffer ), "max: %7.4f         /         max: %7.4f", max, max_global );
+			ImGui::Text( buffer );
+
+			snprintf( buffer, sizeof( buffer ), "avg: %7.4f", avg );
+			ImGui::Text( buffer );
+
+			snprintf( buffer, sizeof( buffer ), "std: %7.4f", std );
+			ImGui::Text( buffer );
+
+			ImGui::EndTabItem();
+		}
+
 		if ( ImGui::BeginTabItem( "Controls" ) )
 		{
 			ImGui::NewLine();
@@ -71,50 +116,6 @@ void DrawGUI()
 			float *velColorPointer = (float *)&velColor;
 			if ( ImGui::ColorEdit3( "Velocity color: ", velColorPointer ) )
 			{ scenario->boidVelocity = ImGui::ColorConvertFloat4ToU32( velColor ); }
-
-			ImGui::EndTabItem();
-		}
-
-		if ( ImGui::BeginTabItem( "Statistics" ) )
-		{
-			float min, max, avg, std;
-			min = minimum( graphTotal.m_graphData, 100 );
-			max = maximum( graphTotal.m_graphData, 100 );
-			avg = average( graphTotal.m_graphData, 100 );
-			std = stdev( graphTotal.m_graphData, 100 );
-
-			if ( min_global > min )
-				min_global = min;
-
-			if ( max_global < max )
-				max_global = max;
-
-			char buffer[50];
-			snprintf( buffer, sizeof( buffer ), "Performance measurements (in ms)" );
-			ImGui::Text( buffer );
-
-			float current = 0.50f * graphTotal.m_graphData[graphTotal.m_graphWidth - 1] +
-							0.25f * graphTotal.m_graphData[graphTotal.m_graphWidth - 2] +
-							0.15f * graphTotal.m_graphData[graphTotal.m_graphWidth - 3] +
-							0.10f * graphTotal.m_graphData[graphTotal.m_graphWidth - 4];
-
-			snprintf( buffer, sizeof( buffer ), "Current: %7.4f", current );
-			ImGui::Text( buffer );
-
-			snprintf( buffer, sizeof( buffer ), "Recent               /         Overall " );
-			ImGui::Text( buffer );
-
-			snprintf( buffer, sizeof( buffer ), "min: %7.4f         /         min: %7.4f", min, min_global );
-			ImGui::Text( buffer );
-
-			snprintf( buffer, sizeof( buffer ), "max: %7.4f         /         max: %7.4f", max, max_global );
-			ImGui::Text( buffer );
-
-			snprintf( buffer, sizeof( buffer ), "avg: %7.4f", avg );
-			ImGui::Text( buffer );
-
-			snprintf( buffer, sizeof( buffer ), "std: %7.4f", std );
-			ImGui::Text( buffer );
 
 			ImGui::EndTabItem();
 		}

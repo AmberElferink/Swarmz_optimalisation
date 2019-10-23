@@ -306,8 +306,10 @@ class Swarm
 	{
 		UpdateAcceleration();
 
-		for ( auto &b : *boids )
+		for ( int j = 0, l = boids->size(); j < l; j++ ) 
+		//for ( Boid &b : *boids )
 		{
+			Boid &b = (*boids)[j];
 			b.Velocity = ( b.Velocity + b.Acceleration * delta ).ClampLength( MaxVelocity );
 			b.Position += b.Velocity * delta;
 		}

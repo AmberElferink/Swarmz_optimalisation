@@ -1,9 +1,6 @@
 
 #include "precomp.h"
 
-#include "Grid.h"
-#include "precomp.h"
-
 Grid::Grid( int nx, int ny, int nz )
 {
 	// receive 'dem dimensions.
