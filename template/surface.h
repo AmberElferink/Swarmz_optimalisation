@@ -34,6 +34,14 @@ inline Pixel SubBlend( Pixel a_Color1, Pixel a_Color2 )
 	return (Pixel)(red + green + blue);
 }
 
+// color scaling
+inline Pixel ScaleColor( Pixel c, int s )
+{
+	const unsigned int rb = ( ( ( c & ( REDMASK | BLUEMASK ) ) * s ) >> 8 ) & ( REDMASK | BLUEMASK );
+	const unsigned int g = ( ( ( c & GREENMASK ) * s ) >> 8 ) & GREENMASK;
+	return rb + g;
+}
+
 class Surface
 {
 	enum { OWNER = 1 };

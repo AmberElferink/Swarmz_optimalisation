@@ -21,7 +21,7 @@
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <SpectreMitigation>false</SpectreMitigation>
@@ -102,7 +102,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <BrowseInformation>
       </BrowseInformation>
@@ -150,6 +150,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Scenario.cpp" />
+    <ClCompile Include="Statistics.cpp" />
     <ClCompile Include="surface.cpp" />
     <ClCompile Include="swarmz.cpp" />
     <ClCompile Include="template.cpp">
@@ -169,6 +170,7 @@
     <ClInclude Include="lib\imgui\imstb_truetype.h" />
     <ClInclude Include="precomp.h" />
     <ClInclude Include="Scenario.h" />
+    <ClInclude Include="Statistics.h" />
     <ClInclude Include="surface.h" />
     <ClInclude Include="swarmz.h" />
     <ClInclude Include="template.h" />

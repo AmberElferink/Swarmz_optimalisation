@@ -69,15 +69,17 @@
 // C++ practice but a mere simplification for this small project.
 using namespace std;
 
-#include "surface.h"
-#include "template.h"
-using namespace Tmpl8;
+#include "Statistics.h"
 
+#include "template.h"
+#include "surface.h"
+
+using namespace Tmpl8;
 #include "Graph.h"
+
 #include "swarmz.h"
 using namespace sw;
 #include "Scenario.h"
-#include "Grid.h"
 
 
 #include "game.h"

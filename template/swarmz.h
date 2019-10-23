@@ -37,7 +37,7 @@
 #include <atomic>
 
 #define PI2 6.28318530717958647692
-#define NUMBER_OF_ELEMENTS_IN_CELL 50
+#define NUMBER_OF_ELEMENTS_IN_CELL 100
 
 namespace sw
 {
@@ -181,26 +181,21 @@ struct Boid
 	Vec3 Velocity;
 	Vec3 Acceleration;
 
-	int id;
+	int numberOfNearbyBoids;
 
 	Boid()
 	{
-		Position = Vec3( 0 );
-		Velocity = Vec3( 0 );
-		Acceleration = Vec3( 0 );
-
-		id = 0;
 	}
 
 	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
 	{
-		id = 0;
+		numberOfNearbyBoids = 0;
 	}
 };
 
 struct NearbyBoid
 {
-	Boid *boid;
+	Boid boid;
 	Vec3 direction;
 	float distance;
 };
@@ -230,65 +225,70 @@ class Grid
 {
 
   public:
-	// represents the number of columns / rows.
-	int xcells, ycells, zcells;
+	// represents the number of cells in the
+	// given dimension.
+	int nx, ny, nz;
 
-	// represents the boundingbox.
-	Vec3 min, max;
+	// represents the boundingbox of the grid.
+	Vec3 minbb, maxbb;
+
+	// represents the step sizes within the grid.
+	Vec3 step;
 
 	// regular constructor / deconstructor
-	Grid( int xcells, int ycells, int zcells );
+	Grid( int nx, int ny, int nz );
 	~Grid();
 
-	inline int CalculateGridCellIndex( int celX, int celY, int celZ );
-	inline bool CheckInsideGrid( int celX, int celY, int celZ );
+	// computes the index to use for within the grid.
+	inline int CalculateGridCellIndex( int ix, int iy, int iz );
 
-	void ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ );
+	// computes whether all the provided indices are within the grid.
+	inline bool CheckInsideGrid( int ix, int iy, int iz );
+
+	// computes the indices for all dimensions.
+	void ComputeGridIndex( const Boid &b, int &ix, int &iy, int &iz );
 
 	// constructs the grid. If no min / max
 	// is provided the bounding box will be
 	// computed dynamically.
-	void ConstructGrid( const vector<Boid> &b );
-	void ConstructGrid( Vec3 min, Vec3 max, const vector<Boid> &b );
+	void ConstructGrid( const vector<Boid> &b, float perceptionRadius );
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int celX, int celY, int celZ );
+	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
+
+	void DrawGrid( Surface *surface, Pixel density );
 
   private:
 	GridCell *cells;
 
+	// clears out the grid.
+	void ClearGrid();
+
 	// computes the bounding box, dynamically.
-	void ComputeBoundingBox( const vector<Boid> &b );
+	void ComputeBoundingBox( const vector<Boid> &b, float perceptionRadius );
 
 	// stores all boids in their corresponding cells.
 	void StoreInCells( const vector<Boid> &b );
-
-	// reorders the data to make it more cache-friendly.
-	void ReorderData();
 };
 
 class Swarm
 {
   public:
-#ifdef DEBUG_PERFORMANCE
-	Graph *tBuildVoxelCache = new Graph( "Build voxel cache", 100, 0x00FF0000, 0, 1.0f );
-	Graph *tGetNearbyBoids = new Graph( "Get nearby Boids", 100, 0x00FF0000, 0, 100.0f );
-#endif
+	Grid *grid;
 
-	float PerceptionRadius = 30;
-
-	float SeparationWeight = 120;
+	std::vector<Vec3> SteeringTargets;
+	DistanceType SteeringTargetType = DistanceType::LINEAR;
 	DistanceType SeparationType = DistanceType::INVERSE_QUADRATIC;
 
 	float AlignmentWeight = 1;
 	float CohesionWeight = 1;
-
 	float SteeringWeight = 0.1f;
-	std::vector<Vec3> SteeringTargets;
-	DistanceType SteeringTargetType = DistanceType::LINEAR;
+	float SeparationWeight = 1;
 
+	float PerceptionRadius = 30.0f;
 	float BlindspotAngleDeg = 20.0f;
+
 	float MaxAcceleration = 10.0f;
 	float MaxVelocity = 20.0f;
 
@@ -296,8 +296,7 @@ class Swarm
 	{
 		std::random_device rd;
 		eng = std::mt19937( rd() );
-
-		grid = new Grid( 20, 20, 20 );
+		grid = new Grid( 10, 10, 10 );
 	}
 
 	void Update( float delta )
@@ -313,36 +312,18 @@ class Swarm
 
 	void UpdateAcceleration()
 	{
-		grid->ConstructGrid( (*boids) );
-
 		if ( PerceptionRadius == 0 )
-		{
 			PerceptionRadius = 1;
-		}
 
-#ifdef DEBUG_PERFORMANCE
-		tBuildVoxelCache->Start();
-#endif
-		buildVoxelCache();
-#ifdef DEBUG_PERFORMANCE
-		tBuildVoxelCache->StopAndStore();
-#endif
+		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
 		for ( auto &b : *boids )
-		{
 			updateBoid( b );
-		}
-
-#ifdef DEBUG_PERFORMANCE
-		tGetNearbyBoids->Store();
-#endif
 	}
 
   private:
-	Grid* grid;
-	std::vector<Boid> *boids;
-	std::unordered_map<Vec3, std::vector<Boid *>, Vec3Hasher> voxelCache;
 	std::mt19937 eng;
+	std::vector<Boid> *boids;
 
 	void updateBoid( Boid &b )
 	{
@@ -351,16 +332,8 @@ class Swarm
 		Vec3 positionSum;
 		Vec3 po = b.Position;
 
-#ifdef DEBUG_PERFORMANCE
-		tGetNearbyBoids->Start();
-#endif
-
 		auto vnb = getNearbyBoids( b );
-
-
-#ifdef DEBUG_PERFORMANCE
-		tGetNearbyBoids->Stop();
-#endif
+		b.numberOfNearbyBoids = vnb.size();
 
 		for ( NearbyBoid &closeBoid : vnb )
 		{
@@ -373,10 +346,9 @@ class Swarm
 				float separationFactor = TransformDistance( closeBoid.distance, SeparationType );
 				separationSum += closeBoid.direction.Negative() * separationFactor;
 			}
-			headingSum += closeBoid.boid->Velocity;
-			positionSum += closeBoid.boid->Position;
+			headingSum += closeBoid.boid.Velocity;
+			positionSum += closeBoid.boid.Position;
 		}
-
 		Vec3 steeringTarget = b.Position;
 		float targetDistance = -1;
 		for ( auto &target : SteeringTargets )
@@ -419,14 +391,19 @@ class Swarm
 		int ix, iy, iz;
 		grid->ComputeGridIndex( b, ix, iy, iz );
 
+		// the offsets
+		const int sx = 1;
+		const int sy = 1;
+		const int sz = 1;
+
 		// loop over 'dem shizzles
-		for ( int x = ix -1; x < ix +1; x++ )
+		for ( int x = ix - sx, lx = ix + sx; x <= lx; x++ )
 		{
-			for ( int y = iy -1; y < iy + 1; y++ )
+			for ( int y = iy - sy, ly = iy + sy; y <= ly; y++ )
 			{
-				for ( int z = iz -1; z < iz + 1; z++ )
+				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
-					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x,y,z );
+					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
 				}
 			}
 		}
@@ -434,39 +411,39 @@ class Swarm
 		return vnb;
 	}
 
-	void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
-	{
-		auto iter = voxelCache.find( voxelPos );
-		if ( iter != voxelCache.end() )
-		{
-			for ( Boid *test : iter->second )
-			{
-				const Vec3 &p1 = b.Position;
-				const Vec3 &p2 = test->Position;
-				Vec3 vec = p2 - p1;
-				float distance = vec.Length();
-				float blindAngle = b.Velocity.Negative().AngleTo( vec );
-				if ( ( &b ) != test && distance <= PerceptionRadius && ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 ) )
-				{
-					NearbyBoid nb;
-					nb.boid = test;
-					nb.distance = distance;
-					nb.direction = vec;
-					result.push_back( nb );
-				}
-			}
-		}
-	}
+	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
+	//{
+	//	auto iter = voxelCache.find( voxelPos );
+	//	if ( iter != voxelCache.end() )
+	//	{
+	//		for ( Boid *test : iter->second )
+	//		{
+	//			const Vec3 &p1 = b.Position;
+	//			const Vec3 &p2 = test->Position;
+	//			Vec3 vec = p2 - p1;
+	//			float distance = vec.Length();
+	//			float blindAngle = b.Velocity.Negative().AngleTo( vec );
+	//			if ( ( &b ) != test && distance <= PerceptionRadius && ( BlindspotAngleDeg <= blindAngle || b.Velocity.Length() == 0 ) )
+	//			{
+	//				NearbyBoid nb;
+	//				nb.boid = test;
+	//				nb.distance = distance;
+	//				nb.direction = vec;
+	//				result.push_back( nb );
+	//			}
+	//		}
+	//	}
+	//}
 
-	void buildVoxelCache()
-	{
-		voxelCache.clear();
-		voxelCache.reserve( boids->size() );
-		for ( auto &b : *boids )
-		{
-			voxelCache[getVoxelForBoid( b )].push_back( &b );
-		}
-	}
+	//void buildVoxelCache()
+	//{
+	//	voxelCache.clear();
+	//	voxelCache.reserve( boids->size() );
+	//	for ( auto &b : *boids )
+	//	{
+	//		voxelCache[getVoxelForBoid( b )].push_back( &b );
+	//	}
+	//}
 
 	Vec3 getVoxelForBoid( const Boid &b ) const
 	{

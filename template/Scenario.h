@@ -6,24 +6,19 @@ class Scenario
 	// what is privacy these days anyway?
 
   protected:
-	// represents a few debugging colors
-	Pixel boidPosition = 0xffffff;
-	Pixel boidVelocity = 0xffff00;
-	Pixel boidAcceleration = 0xff0000;
-
 	// used for debugging purposes
-	float draw_velocity_distance = 2.0f;
-	float draw_acceleration_distance = 2.0f;
+	float draw_velocity_distance = 4.0f;
+	float draw_acceleration_distance = 4.0f;
 
 	// represents a basic camera
 	float camera_x = 0;
 	float camera_y = 0;
 	float camera_speed = 5.0f;
 
+  public:
 	// represents the swarm
 	Swarm *swarm;
 
-  public:
 	float camera_scale = 1.0f;
 	float camera_scale_min = 0.1f;
 	float camera_scale_max = 10.0f;
@@ -40,6 +35,11 @@ class Scenario
 		boids.clear();
 	}
 
+	Pixel boidVelocity = 0xaaaa00;
+	Pixel boidAcceleration = 0xaa0000;
+	Pixel expensiveColor = 0x00ff00;
+	Pixel cheapColor = 0x0000ff;
+
 	// represents the various targets of the boids.
 	vector<Vec3> targets;
 
@@ -47,7 +47,7 @@ class Scenario
 	vector<Boid> boids;
 
 	// prepares the scenario
-	virtual void Init(int count) = 0;
+	virtual void Init( int count ) = 0;
 
 	// runs / draws the scenario. Is generally
 	// the same, hence we implement it on this
