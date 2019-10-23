@@ -188,6 +188,8 @@ struct Boid
 	{
 	}
 
+	//Boid( const Boid &b ) = delete;
+
 	explicit Boid( Vec3 pos, Vec3 vel ) : Position( pos ), Velocity( vel )
 	{
 		numberOfNearbyBoids = 0;
@@ -258,121 +260,6 @@ class Grid
 	// the out vector. Take note: reuse the vector.
 	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	void DrawGrid( Surface *surface, Pixel density );
 
   private:
@@ -438,7 +325,11 @@ class Swarm
 	}
 
   private:
+	// not thread safe
+	std::vector<NearbyBoid> vnb;
 	std::mt19937 eng;
+
+	// read-only thread safe
 	std::vector<Boid> *boids;
 
 	void updateBoid( Boid &b )
@@ -448,7 +339,8 @@ class Swarm
 		Vec3 positionSum;
 		Vec3 po = b.Position;
 
-		auto vnb = getNearbyBoids( b );
+		vnb.clear();
+		getNearbyBoids( b, vnb );
 		b.numberOfNearbyBoids = vnb.size();
 
 		for ( NearbyBoid &closeBoid : vnb )
@@ -499,9 +391,8 @@ class Swarm
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
 
-	std::vector<NearbyBoid> getNearbyBoids( const Boid &b ) const
+	void getNearbyBoids( const Boid &b, std::vector<NearbyBoid> &vnb ) const
 	{
-		vector<NearbyBoid> vnb;
 
 		// retrieve the index
 		int ix, iy, iz;
@@ -523,8 +414,6 @@ class Swarm
 				}
 			}
 		}
-
-		return vnb;
 	}
 
 	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const

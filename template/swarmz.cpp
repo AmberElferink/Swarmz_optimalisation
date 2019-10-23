@@ -84,11 +84,12 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
 		//compute distance between b and test
-		Boid target = gridCell.boids[i];
+		const Boid &target = gridCell.boids[i];
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
 		float dstSqr = b.Position.DistanceToSqr( target.Position );
+
 		// check if they are the same or not ( todo: this is broken at this point)
 		if ( dstSqr > 0.0001f )
 		{
@@ -106,7 +107,7 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 					nb.boid = target;
 					nb.distance = sqrtf( dstSqr );
 					nb.direction = vec;
-					out.push_back( nb );
+					out.emplace_back( nb );
 				}
 			}
 		}
@@ -247,7 +248,7 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 
 void Grid::StoreInCells( const vector<Boid> &vb )
 {
-	for ( Boid b : vb )
+	for ( const Boid &b : vb )
 	{
 		// retrieve the index
 		int ix, iy, iz;
