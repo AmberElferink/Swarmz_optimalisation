@@ -72,17 +72,17 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		return;
 
 	// retrieve the cell
-	GridCell gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
+	const GridCell& gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
 
 	// do cell computations, this is copied (for now)
 	// - fix expensive operations
 	// - apply if statements sooner (e.g., compute
 	// distance -> check, compute angle -> check,
 	// etc), allows for early-opt out.
-	for ( int i = 0; i < gridCell.count; i++ )
+
+	for ( const Boid &target : gridCell.boids )
 	{
 		//compute distance between b and test
-		Boid target = gridCell.boids[i];
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
@@ -127,6 +127,7 @@ void sw::Grid::DrawGrid( Surface *surface, Pixel density )
 			{
 				int index = CalculateGridCellIndex( x, y, z );
 				count += cells[index].count;
+
 			}
 
 			// keep track of the largest
@@ -252,7 +253,8 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
-		cells[i].AddBoid( b );
+		GridCell &cell = cells[i];		
+		cell.AddBoid( b );
 	}
 }
 
