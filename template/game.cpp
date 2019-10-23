@@ -11,7 +11,7 @@ Graph graphTotal( "total loop", 100, 0x00ff0000, 0, 100 );
 Graph graphUpdate( "boids loop", 100, 0x00FF0000, 0, 100 );
 Graph graphDraw( "boids draw loop", 100, 0x00FF0000, 0, 10 );
 
-bool paused = true;
+bool paused = false;
 bool step = false;
 float min_global, max_global;
 
