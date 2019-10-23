@@ -51,28 +51,28 @@ void sw::Grid::ClearGrid()
 		cells[j].Clear();
 }
 
-void Grid::ConstructGrid( const vector<Boid> &b )
+void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 {
 	// clear out the grid of any
 	// previous usage
 	ClearGrid();
 
 	// compute the bounding box
-	ComputeBoundingBox( b );
+	ComputeBoundingBox( b, perceptionRadius );
 
 	// store the data
 	StoreInCells( b );
 }
 
-void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int celX, int celY, int celZ )
+void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz )
 {
 	// if the location is not inside
 	// the grid, skip it.
-	if ( !CheckInsideGrid( celX, celY, celZ ) )
+	if ( !CheckInsideGrid( ix, iy, iz ) )
 		return;
 
 	// retrieve the cell
-	GridCell gridCell = cells[CalculateGridCellIndex( celX, celY, celZ )];
+	GridCell gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
 
 	// do cell computations, this is copied (for now)
 	// - fix expensive operations
@@ -91,17 +91,18 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		if ( dstSqr > 0.0001f )
 		{
 			// check if the distance is nearby enough
-			if ( dstSqr <= PerceptionRadius * PerceptionRadius )
+			if ( dstSqr <= ( PerceptionRadius * PerceptionRadius ) )
 			{
 
 				float blindAngle = b.Velocity.Negative().AngleTo( vec );
 
 				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.DotProduct(b.Velocity) == 0 )
+				if ( BlindspotAngleDeg <= blindAngle || b.Velocity.DotProduct( b.Velocity ) == 0 )
 				{
 					NearbyBoid nb;
-					nb.boid = &target;	
-					nb.distance = sqrtf(dstSqr);
+					// was: nb.boid = &target
+					nb.boid = target;
+					nb.distance = sqrtf( dstSqr );
 					nb.direction = vec;
 					out.push_back( nb );
 				}
@@ -110,7 +111,65 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 	}
 }
 
-void Grid::ComputeBoundingBox( const vector<Boid> &b )
+// todo: remove this function
+void sw::Grid::DrawGrid( Surface *surface, Pixel density )
+{
+	// find the maximum density over the z
+	// dimension
+	int max = 0;
+	for ( int x = 0; x < nx; x++ )
+	{
+		for ( int y = 0; y < ny; y++ )
+		{
+			// gather over the z dimension
+			int count = 0;
+			for ( int z = 0; z < nz; z++ )
+			{
+				int index = CalculateGridCellIndex( x, y, z );
+				count += cells[index].count;
+			}
+
+			// keep track of the largest
+			if ( count > max )
+				max = count;
+		}
+	}
+
+	float epsilon = 1.0f;
+	// draw all the boxes, stacking on
+	// the z dimension
+	for ( int x = 0; x < nx; x++ )
+	{
+		for ( int y = 0; y < ny; y++ )
+		{
+			// stack on the z dimension
+			int count = 0;
+			for ( int z = 0; z < nz; z++ )
+			{
+				int index = CalculateGridCellIndex( x, y, z );
+				count += cells[index].count;
+			}
+
+			// draw the box
+			float factor = (float)count / max;
+			Pixel output = ScaleColor( density, (int)( 255 * factor ) );
+			surface->Box(
+				( SCRWIDTH >> 1 ) + minbb.X + x * step.X + epsilon,
+				( SCRHEIGHT >> 1 ) + minbb.Y + y * step.Y + epsilon,
+				( SCRWIDTH >> 1 ) + minbb.X + ( x + 1 ) * step.X - epsilon,
+				( SCRHEIGHT >> 1 ) + minbb.Y + ( y + 1 ) * step.Y - epsilon, output );
+		}
+	}
+
+	// draw the global box
+	surface->Box(
+		( SCRWIDTH >> 1 ) + minbb.X,
+		( SCRHEIGHT >> 1 ) + minbb.Y,
+		( SCRWIDTH >> 1 ) + maxbb.X,
+		( SCRHEIGHT >> 1 ) + maxbb.Y, density );
+}
+
+void Grid::ComputeBoundingBox( const vector<Boid> &b, float perceptionRadius )
 {
 	// default values
 	float minX = FLT_MAX;
@@ -135,15 +194,40 @@ void Grid::ComputeBoundingBox( const vector<Boid> &b )
 		if ( b[i].Position.Z > maxZ ) maxZ = b[i].Position.Z;
 	}
 
+	float epsilon = 0.001f;
+	Vec3 avgStep = Vec3(
+		( maxX - minX ) / nx + epsilon,
+		( maxY - minY ) / ny + epsilon,
+		( maxZ - minZ ) / nz + epsilon );
+
+	( *this ).step = Vec3(
+		max( perceptionRadius, avgStep.X ),
+		max( perceptionRadius, avgStep.Y ),
+		max( perceptionRadius, avgStep.Z ) );
+
+	Vec3 stepDiff = step - avgStep;
+	Vec3 bbOffset = Vec3(
+		stepDiff.X * nx * 0.5f,
+		stepDiff.Y * ny * 0.5f,
+		stepDiff.Z * nz * 0.5f );
 	// store the final min / max values.
-	( *this ).min = Vec3( minX, minY, minZ );
-	( *this ).max = Vec3( maxX, maxY, maxZ );
+	( *this ).minbb = Vec3( minX, minY, minZ ) - bbOffset;
+	( *this ).maxbb = Vec3( maxX, maxY, maxZ ) + bbOffset;
+
+	// store the step size for this bounding box
+	// add a small bit due to floating point inprecision
+	( *this ).step = Vec3(
+		max( perceptionRadius, ( maxX - minX ) / nx ) + epsilon,
+		max( perceptionRadius, ( maxY - minY ) / ny ) + epsilon,
+		max( perceptionRadius, ( maxZ - minZ ) / nz ) + epsilon );
+
+	// todo: center when one (or more) dimension(s) of step size is too small
 }
 
 void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 {
 	// place the boid into 'grid-space'
-	Vec3 boidPosRelative = b.Position - min;
+	Vec3 boidPosRelative = b.Position - minbb;
 
 	// on default, we take the 0'th index
 	// this happens if one of the dimensions
@@ -152,28 +236,10 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 	celY = 0;
 	celZ = 0;
 
-	// compute the grid-space of the grid
-	// hurr
-	Vec3 gridExtend = max - min;
-
 	// check if the dimension is not 'flat'.
-	if ( abs( gridExtend.X ) >= 0.0001f )
-	{
-		float cellSizeX = gridExtend.X / ( nx - 1 );
-		celX = (int)( boidPosRelative.X / cellSizeX );
-	}
-
-	if ( abs( gridExtend.Y ) >= 0.0001f )
-	{
-		float cellSizeY = gridExtend.Y / ( ny - 1 );
-		celY = (int)( boidPosRelative.Y / cellSizeY );
-	}
-
-	if ( abs( gridExtend.Z ) >= 0.0001f )
-	{
-		float cellSizeZ = gridExtend.Z / ( nz - 1 );
-		celZ = (int)( boidPosRelative.Z / cellSizeZ );
-	}
+	celX = (int)( boidPosRelative.X / step.X );
+	celY = (int)( boidPosRelative.Y / step.Y );
+	celZ = (int)( boidPosRelative.Z / step.Z );
 }
 
 void Grid::StoreInCells( const vector<Boid> &vb )
@@ -185,8 +251,7 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 		ComputeGridIndex( b, ix, iy, iz );
 
 		// add to the correct cell
-		int i = CalculateGridCellIndex( ix, iy, iz );
-		//printf( "ix: %i, iy: %i, iz: %i, i: %i\r\n", ix, iy, iz, i );
+		const int i = CalculateGridCellIndex( ix, iy, iz );
 		cells[i].AddBoid( b );
 	}
 }

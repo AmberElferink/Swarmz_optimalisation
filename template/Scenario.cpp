@@ -10,7 +10,7 @@ void Scenario::Update( float dt )
 
 	// set the targets, update each boid
 	swarm->SteeringTargets = targets;
-	swarm->Update( dt );
+	swarm->Update( 0.05f );
 
 	// manually update the position
 	for ( Boid b : boids )
@@ -34,10 +34,10 @@ void Scenario::Draw( Surface *screen )
 		if ( b.numberOfNearbyBoids > maximumNearbyBoids )
 			maximumNearbyBoids = b.numberOfNearbyBoids;
 
-		printf( "%i ", b.numberOfNearbyBoids );
+		//printf( "%i ", b.numberOfNearbyBoids );
 	}
 
-	printf( "Maximum: %i\r\n", maximumNearbyBoids );
+	//printf( "Maximum: %i\r\n", maximumNearbyBoids );
 
 	// draw each boid
 	for ( Boid b : boids )
@@ -47,13 +47,13 @@ void Scenario::Draw( Surface *screen )
 		Vec3 plot_velocity = plot_position + b.Velocity.Normalized() * draw_velocity_distance;
 		Vec3 plot_acceleration = plot_velocity + b.Acceleration.Normalized() * draw_acceleration_distance;
 
-		// plottin' dem
-		Pixel factorColor = 0x00ff00;
-
-		// deal with it
+		// oh noes, a conversion!
 		float factor = ( (float)b.numberOfNearbyBoids / (maximumNearbyBoids + 1));
-		Pixel output = ScaleColor( factorColor, (factor) * ( 255 ) );
+		Pixel output = AddBlend(
+			ScaleColor( expensiveColor, ( factor ) * ( 255 ) ),
+			ScaleColor( cheapColor, ( 1.0f - factor ) * ( 255 ) ) );
 
+		// plottin' dem
 		screen->PlotSafe( plot_acceleration.X, plot_acceleration.Y, boidAcceleration );
 		screen->PlotSafe( plot_velocity.X, plot_velocity.Y, boidVelocity );
 		screen->PlotSafe( plot_position.X, plot_position.Y, output );
