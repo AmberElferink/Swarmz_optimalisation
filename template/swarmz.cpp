@@ -95,12 +95,7 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		Vec3 bNegVelocity = b.Velocity.Negative();
 		float bNegVelocityLength = bNegVelocity.Length();
 
-		float blindAngle = 0;
-		if ( bNegVelocityLength > 0.000001f && distance > 0.000001f )
-		{
-			Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-			blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
-		}
+
 
 		// check if they are the same or not ( todo: this is broken at this point)
 		if ( distance > 0.001f )
@@ -108,8 +103,12 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 			// check if the distance is nearby enough
 			if ( distance <= PerceptionRadius )
 			{
-
-				float blindAngle = b.Velocity.Negative().AngleTo( distanceVec );
+				float blindAngle = 0;
+				if ( bNegVelocityLength > 0.000001f )
+				{
+					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+				}
 
 				// check if we can 'see it'
 				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
