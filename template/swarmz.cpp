@@ -80,9 +80,11 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 	// distance -> check, compute angle -> check,
 	// etc), allows for early-opt out.
 
-	for ( const Boid &target : gridCell.boids )
+	//for ( const Boid &target : gridCell.boids ) ;
+	for ( int i = 0; i < gridCell.count; i++ )
 	{
 		//compute distance between b and test
+		Boid target = gridCell.boids[i];
 		const Vec3 &p1 = b.Position;
 		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
