@@ -37,7 +37,8 @@
 #include <atomic>
 
 #define PI2 6.28318530717958647692
-#define NUMBER_OF_ELEMENTS_IN_CELL 100
+#define NUMBER_OF_ELEMENTS_IN_CELL 200
+#define GRIDSIZE 20
 
 namespace sw
 {
@@ -296,7 +297,7 @@ class Swarm
 	{
 		std::random_device rd;
 		eng = std::mt19937( rd() );
-		grid = new Grid( 10, 10, 10 );
+		grid = new Grid( GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
 	void Update( float delta )
