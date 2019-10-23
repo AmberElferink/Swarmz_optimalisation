@@ -89,6 +89,7 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		const Vec3 &p2 = target.Position;
 		Vec3 vec = p2 - p1;
 		float dstSqr = b.Position.DistanceToSqr( target.Position );
+
 		// check if they are the same or not ( todo: this is broken at this point)
 		if ( dstSqr > 0.0001f )
 		{
@@ -106,7 +107,7 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 					nb.boid = target;
 					nb.distance = sqrtf( dstSqr );
 					nb.direction = vec;
-					out.push_back( nb );
+					out.emplace_back( nb );
 				}
 			}
 		}

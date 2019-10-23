@@ -37,7 +37,8 @@
 #include <atomic>
 
 #define PI2 6.28318530717958647692
-#define NUMBER_OF_ELEMENTS_IN_CELL 100
+#define GRID_SIZE 20
+#define NUMBER_OF_ELEMENTS_IN_CELL 200
 
 namespace sw
 {
@@ -298,7 +299,7 @@ class Swarm
 	{
 		std::random_device rd;
 		eng = std::mt19937( rd() );
-		grid = new Grid( 10, 10, 10 );
+		grid = new Grid( GRID_SIZE, GRID_SIZE, GRID_SIZE );
 	}
 
 	void Update( float delta )
@@ -324,7 +325,11 @@ class Swarm
 	}
 
   private:
+	// not thread safe
+	std::vector<NearbyBoid> vnb;
 	std::mt19937 eng;
+
+	// read-only thread safe
 	std::vector<Boid> *boids;
 
 	void updateBoid( Boid &b )
@@ -334,7 +339,8 @@ class Swarm
 		Vec3 positionSum;
 		Vec3 po = b.Position;
 
-		auto vnb = getNearbyBoids( b );
+		vnb.clear();
+		getNearbyBoids( b, vnb );
 		b.numberOfNearbyBoids = vnb.size();
 
 		for ( NearbyBoid &closeBoid : vnb )
@@ -385,9 +391,8 @@ class Swarm
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
 
-	std::vector<NearbyBoid> getNearbyBoids( const Boid &b ) const
+	void getNearbyBoids( const Boid &b, std::vector<NearbyBoid> &vnb ) const
 	{
-		vector<NearbyBoid> vnb;
 
 		// retrieve the index
 		int ix, iy, iz;
@@ -409,8 +414,6 @@ class Swarm
 				}
 			}
 		}
-
-		return vnb;
 	}
 
 	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
