@@ -62,7 +62,7 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 	StoreInCells( b );
 }
 
-void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz )
+void Grid::QueryGrid( const Boid &b, const int r, NearbyBoids &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -82,9 +82,12 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
 		//compute distance between b and test
-		const Boid &target = gridCell.boids[i];
+		//const Boid &target = gridCell.boids[i];
 
-		Vec3 distanceVec = target.Position - b.Position;
+		//Vec3 distanceVec = target.Position - b.Position;
+
+		Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
+
 		float distance = distanceVec.Length();
 
 		// check if they are the same or not ( todo: this is broken at this point)
@@ -107,12 +110,10 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 				// check if we can 'see it'
 				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
 				{
-					NearbyBoid nb;
-					// was: nb.boid = &target
-					nb.boid = target;
-					nb.distance = distance;
-					nb.direction = distanceVec;
-					out.emplace_back( nb ); //TODO dit is vaag, moet met mov toch?
+					out.AddBoid( gridCell.posX[i], gridCell.posY[i], gridCell.posZ[i],
+								 gridCell.velX[i], gridCell.velY[i], gridCell.velZ[i],
+								 distanceVec.X, distanceVec.Y, distanceVec.Z,
+								 distance );					
 				}
 			}
 		}
@@ -278,7 +279,14 @@ void GridCell::AddBoid( const Boid &b )
 {
 	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
 	{
-		boids[count] = b;
+		posX[count] = b.Position.X;
+		posY[count] = b.Position.Y;
+		posZ[count] = b.Position.Z;
+		velX[count] = b.Velocity.X;
+		velY[count] = b.Velocity.Y;
+		velZ[count] = b.Velocity.Z;
+
+		//boids[count] = b;
 		count++;
 	}
 	else

@@ -43,10 +43,9 @@ namespace sw
 #define NUMBER_OF_ELEMENTS_IN_CELL 200
 #define GRIDSIZE 20
 
-#define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 );
-	//this means you can calculate the lookup index by: int i = (acosinput + 1) /  indexToAcosRange.
+#define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
+									//this means you can calculate the lookup index by: int i = (acosinput + 1) /  indexToAcosRange.
 const float acosTable[256] = {3.141593, 3.016511, 2.964585, 2.924661, 2.890937, 2.861166, 2.834198, 2.809348, 2.786171, 2.764360, 2.743688, 2.723987, 2.705124, 2.686994, 2.669514, 2.652613, 2.636232, 2.620323, 2.604842, 2.589755, 2.575028, 2.560635, 2.546551, 2.532753, 2.519224, 2.505945, 2.492901, 2.480078, 2.467462, 2.455043, 2.442809, 2.430750, 2.418859, 2.407125, 2.395542, 2.384102, 2.372799, 2.361627, 2.350579, 2.339651, 2.328837, 2.318133, 2.307534, 2.297036, 2.286634, 2.276326, 2.266108, 2.255976, 2.245928, 2.235960, 2.226068, 2.216252, 2.206508, 2.196833, 2.187225, 2.177683, 2.168203, 2.158784, 2.149423, 2.140120, 2.130872, 2.121677, 2.112533, 2.103440, 2.094395, 2.085397, 2.076445, 2.067537, 2.058671, 2.049848, 2.041064, 2.032320, 2.023613, 2.014943, 2.006309, 1.997709, 1.989143, 1.980609, 1.972107, 1.963635, 1.955193, 1.946780, 1.938394, 1.930036, 1.921704, 1.913397, 1.905114, 1.896856, 1.888620, 1.880407, 1.872215, 1.864044, 1.855893, 1.847761, 1.839648, 1.831554, 1.823477, 1.815416, 1.807372, 1.799343, 1.791330, 1.783330, 1.775345, 1.767372, 1.759413, 1.751465, 1.743529, 1.735604, 1.727689, 1.719784, 1.711889, 1.704002, 1.696124, 1.688254, 1.680391, 1.672534, 1.664684, 1.656840, 1.649001, 1.641167, 1.633337, 1.625511, 1.617689, 1.609869, 1.602051, 1.594236, 1.586422, 1.578609, 1.570796, 1.562984, 1.555171, 1.547357, 1.539541, 1.531724, 1.523904, 1.516082, 1.508256, 1.500426, 1.492592, 1.484753, 1.476908, 1.469058, 1.461202, 1.453339, 1.445469, 1.437590, 1.429704, 1.421808, 1.413903, 1.405989, 1.398064, 1.390128, 1.382180, 1.374220, 1.366248, 1.358262, 1.350263, 1.342249, 1.334221, 1.326177, 1.318116, 1.310039, 1.301944, 1.293831, 1.285700, 1.277549, 1.269378, 1.261186, 1.252973, 1.244737, 1.236478, 1.228196, 1.219889, 1.211557, 1.203198, 1.194813, 1.186400, 1.177958, 1.169486, 1.160984, 1.152450, 1.143884, 1.135284, 1.126650, 1.117980, 1.109273, 1.100529, 1.091745, 1.082921, 1.074056, 1.065148, 1.056195, 1.047198, 1.038153, 1.029059, 1.019916, 1.010721, 1.001473, 0.992169, 0.982809, 0.973390, 0.963910, 0.954367, 0.944760, 0.935085, 0.925341, 0.915524, 0.905633, 0.895665, 0.885616, 0.875484, 0.865266, 0.854958, 0.844557, 0.834059, 0.823460, 0.812756, 0.801942, 0.791014, 0.779966, 0.768794, 0.757491, 0.746051, 0.734468, 0.722734, 0.710842, 0.698784, 0.686550, 0.674130, 0.661515, 0.648692, 0.635647, 0.622369, 0.608839, 0.595042, 0.580958, 0.566564, 0.551838, 0.536750, 0.521270, 0.505360, 0.488980, 0.472079, 0.454598, 0.436469, 0.417606, 0.397904, 0.377233, 0.355421, 0.332245, 0.307395, 0.280426, 0.250656, 0.216931, 0.177008, 0.125082};
-
 
 enum class DistanceType
 {
@@ -117,7 +116,7 @@ struct Vec3
 	float AngleToNorm( const Vec3 &v ) //faster if lengths had to be calculated in outer scope anyway
 	{
 		float dotpr = DotProduct( v );
-		return  ACOS( DotProduct( v ) ) * toRadian ; // number is: 180 / PI
+		return ACOS( DotProduct( v ) ) * toRadian; // number is: 180 / PI
 	}
 
 	Vec3 Normalized() const
@@ -224,24 +223,75 @@ struct Boid
 	}
 };
 
-struct NearbyBoid
+//struct NearbyBoid
+//{
+//	Boid boid;
+//	Vec3 direction;
+//	float distance;
+//};
+
+class NearbyBoids
 {
-	Boid boid;
-	Vec3 direction;
-	float distance;
+
+  public:
+	int counter = 0;
+	//currently just initialized at the maximum number that can be in there. Can maybe be done better after bucket implementation.
+	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	float dirX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float dirY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float dirZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	float distance[NUMBER_OF_ELEMENTS_IN_CELL];
+
+	//needed to upp count
+	void AddBoid( float posX, float posY, float posZ,
+				  float velX, float velY, float velZ,
+				  float dirX, float dirY, float dirZ,
+				  float distance )
+	{
+		(*this).posX[counter] = posX;
+		(*this).posY[counter] = posY;
+		(*this).posZ[counter] = posZ;
+		( *this ).velX[counter] = velX;
+		( *this ).velY[counter] = velY;
+		( *this ).velZ[counter] = velZ;
+		( *this ).dirX[counter] = dirX;
+		( *this ).dirY[counter] = dirY;
+		( *this ).dirZ[counter] = dirZ;
+		( *this ).distance[counter] = distance;
+		counter++;
+	}
+
+	void Clear()
+	{
+		counter = 0;
+	}
+
 };
 
 struct GridCell
 {
   public:
+	// the number of boids in this cell.
+	int count = 0;
+
 	// the default constructor :))
 	GridCell();
 
 	// the buffer for the boids in this cell.
-	Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
+	//Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
 
-	// the number of boids in this cell.
-	int count;
+
 
 	// Adds the given boid to this cell. If
 	// the cell is full, a random boid is
@@ -286,7 +336,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
+	void QueryGrid( const Boid &b, const int r, NearbyBoids &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -307,7 +357,6 @@ class Swarm
 {
   public:
 	Grid *grid;
-
 
 	std::vector<Vec3> SteeringTargets;
 	DistanceType SteeringTargetType = DistanceType::LINEAR;
@@ -355,7 +404,8 @@ class Swarm
 
   private:
 	// not thread safe
-	std::vector<NearbyBoid> vnb;
+	//std::vector<NearbyBoid> vnb;
+	NearbyBoids vnb;
 	std::mt19937 eng;
 
 	// read-only thread safe
@@ -368,23 +418,33 @@ class Swarm
 		Vec3 positionSum;
 		Vec3 po = b.Position;
 
-		vnb.clear();
+		vnb.Clear();
 		getNearbyBoids( b, vnb );
-		b.numberOfNearbyBoids = vnb.size();
+		b.numberOfNearbyBoids = vnb.counter;
 
-		for ( NearbyBoid &closeBoid : vnb )
+		for ( int i = 0; i < vnb.counter; i++ )
 		{
-			if ( closeBoid.distance == 0 )
+			if ( vnb.distance[i] == 0 )
 			{
 				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 			}
 			else
 			{
-				float separationFactor = TransformDistance( closeBoid.distance, SeparationType );
-				separationSum += closeBoid.direction.Negative() * separationFactor;
+				float separationFactor = TransformDistance( vnb.distance[i], SeparationType );
+				//separationSum += closeBoid.direction.Negative() * separationFactor;
+				separationSum.X += -vnb.dirX[i] * separationFactor;
+				separationSum.Y += -vnb.dirY[i] * separationFactor;
+				separationSum.Z += -vnb.dirZ[i] * separationFactor;
 			}
-			headingSum += closeBoid.boid.Velocity;
-			positionSum += closeBoid.boid.Position;
+			//headingSum += closeBoid.boid.Velocity;
+			headingSum.X += vnb.velX[i];
+			headingSum.Y += vnb.velY[i];
+			headingSum.Z += vnb.velZ[i];
+
+			//positionSum += closeBoid.boid.Position;
+			positionSum.X += vnb.posX[i];
+			positionSum.Y += vnb.posY[i];
+			positionSum.Z += vnb.posZ[i]; 
 		}
 		Vec3 steeringTarget = b.Position;
 		float targetDistance = -1;
@@ -399,20 +459,20 @@ class Swarm
 		}
 
 		// Separation: steer to avoid crowding local flockmates
-		Vec3 separation = vnb.size() > 0 ? separationSum / vnb.size() : separationSum;
+		Vec3 separation = vnb.counter > 0 ? separationSum / vnb.counter : separationSum;
 
 		// Alignment: steer towards the average heading of local flockmates
-		Vec3 alignment = vnb.size() > 0 ? headingSum / vnb.size() : headingSum;
+		Vec3 alignment = vnb.counter > 0 ? headingSum / vnb.counter : headingSum;
 
 		// Cohesion: steer to move toward the average position of local flockmates
-		Vec3 avgPosition = vnb.size() > 0 ? positionSum / vnb.size() : b.Position;
+		Vec3 avgPosition = vnb.counter > 0 ? positionSum / vnb.counter : b.Position;
 		Vec3 cohesion = avgPosition - b.Position;
 
 		// Steering: steer towards the nearest target location (like a moth to the light)
 		Vec3 steering = ( steeringTarget - b.Position ).Normalized() * targetDistance;
 
 		// calculate boid acceleration
-		Vec3 acceleration;
+		Vec3 acceleration(0,0,0);
 		acceleration += separation * SeparationWeight;
 		acceleration += alignment * AlignmentWeight;
 		acceleration += cohesion * CohesionWeight;
@@ -420,7 +480,7 @@ class Swarm
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
 
-	void getNearbyBoids( const Boid &b, std::vector<NearbyBoid> &vnb ) const
+	void getNearbyBoids( const Boid &b, NearbyBoids &vnb ) const
 	{
 
 		// retrieve the index
@@ -444,52 +504,6 @@ class Swarm
 			}
 		}
 	}
-	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
-	//{
-	//	auto iter = voxelCache.find( voxelPos );
-	//	if ( iter != voxelCache.end() )
-	//	{
-	//		for ( Boid *test : iter->second )
-	//		{
-	//			const Vec3 &p1 = b.Position;
-	//			const Vec3 &p2 = test->Position;
-
-	//			Vec3 distanceVec = p2 - p1;
-	//			float distance = distanceVec.Length();
-	//			Vec3 distanceVecNorm = distanceVec / distance;
-
-	//			Vec3 bNegVelocity = b.Velocity.Negative();
-	//			float bNegVelocityLength = bNegVelocity.Length();
-
-	//			float blindAngle = 0;
-	//			if ( bNegVelocityLength > 0.000001f && distance > 0.000001f )
-	//			{
-	//				Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-	//				blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
-	//			}
-
-	//			if ( ( &b ) != test &&
-	//				distance <= PerceptionRadius &&
-	//				( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 ) )
-	//			{
-	//				NearbyBoid nb;
-	//				nb.boid = test;
-	//				nb.distance = distance;
-	//				nb.direction = distanceVec;
-	//				result.push_back( nb );
-	//			}
-	//		}
-	//	}
-	//}
-	//void buildVoxelCache()
-	//{
-	//	voxelCache.clear();
-	//	voxelCache.reserve( boids->size() );
-	//	for ( auto &b : *boids )
-	//	{
-	//		voxelCache[getVoxelForBoid( b )].push_back( &b );
-	//	}
-	//}
 
 	Vec3 getVoxelForBoid( const Boid &b ) const
 	{
