@@ -40,7 +40,7 @@ namespace sw
 #define PI2 6.28318530717958647692
 #define PI 3.14159265
 #define toRadian 57.29577951308f
-#define NUMBER_OF_ELEMENTS_IN_CELL 200
+#define NUMBER_OF_ELEMENTS_IN_CELL 500
 #define GRIDSIZE 20
 
 #define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
