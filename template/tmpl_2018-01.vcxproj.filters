@@ -30,6 +30,7 @@
     <ClCompile Include="Scenario.cpp" />
     <ClCompile Include="Statistics.cpp" />
     <ClCompile Include="swarmz.cpp" />
+    <ClCompile Include="Bucket.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />
@@ -68,6 +69,8 @@
     <ClInclude Include="Graph.h" />
     <ClInclude Include="Scenario.h" />
     <ClInclude Include="Statistics.h" />
+    <ClInclude Include="Bucket.h" />
+    <ClInclude Include="BucketPool.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="template code">
