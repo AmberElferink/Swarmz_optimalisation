@@ -308,8 +308,8 @@ class Grid
   public:
 	// represents the number of cells in the
 	// given dimension.
-	int nx, ny, nz;
-
+	uint nx, ny, nz; //this overflowed at first
+	 
 	// represents the boundingbox of the grid.
 	Vec3 minbb, maxbb;
 
@@ -317,17 +317,17 @@ class Grid
 	Vec3 step;
 
 	// regular constructor / deconstructor
-	Grid( int nx, int ny, int nz );
+	Grid( uint nx, uint ny, uint nz );
 	~Grid();
 
 	// computes the index to use for within the grid.
-	inline int CalculateGridCellIndex( int ix, int iy, int iz );
+	inline uint CalculateGridCellIndex( uint ix, uint iy, uint iz );
 
 	// computes whether all the provided indices are within the grid.
-	inline bool CheckInsideGrid( int ix, int iy, int iz );
+	inline bool CheckInsideGrid( uint ix, uint iy, uint iz );
 
 	// computes the indices for all dimensions.
-	void ComputeGridIndex( const Boid &b, int &ix, int &iy, int &iz );
+	void ComputeGridIndex( const Boid &b, uint &ix, uint &iy, uint &iz );
 
 	// constructs the grid. If no min / max
 	// is provided the bounding box will be
@@ -484,7 +484,7 @@ class Swarm
 	{
 
 		// retrieve the index
-		int ix, iy, iz;
+		uint ix, iy, iz;
 		grid->ComputeGridIndex( b, ix, iy, iz );
 
 		// the offsets

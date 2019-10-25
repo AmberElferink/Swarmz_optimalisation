@@ -2,7 +2,7 @@
 #include "precomp.h"
 using namespace sw;
 
-Grid::Grid( int nx, int ny, int nz )
+Grid::Grid( uint nx, uint ny, uint nz )
 {
 	// receive 'dem dimensions.
 	( *this ).nx = nx;
@@ -10,6 +10,7 @@ Grid::Grid( int nx, int ny, int nz )
 	( *this ).nz = nz;
 
 	( *this ).cells = new GridCell[nx * ny * nz];
+	printf( "%u", nx * ny * nz );
 }
 
 Grid::~Grid()
@@ -18,14 +19,14 @@ Grid::~Grid()
 	delete cells;
 }
 
-inline int Grid::CalculateGridCellIndex( int ix, int iy, int iz )
+inline uint Grid::CalculateGridCellIndex( uint ix, uint iy, uint iz )
 {
 	// compute the right index. Take note: this function
 	// is inline. It will be placed in the code.
 	return ix + iy * nx + iz * ( nx * ny );
 }
 
-inline bool Grid::CheckInsideGrid( int ix, int iy, int iz )
+inline bool Grid::CheckInsideGrid( uint ix, uint iy, uint iz )
 {
 	// check for all dimensions whether it's
 	// within the grid.
@@ -237,7 +238,7 @@ void Grid::ComputeBoundingBox( const vector<Boid> &b, float perceptionRadius )
 	// todo: center when one (or more) dimension(s) of step size is too small
 }
 
-void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
+void Grid::ComputeGridIndex( const Boid &b, uint &celX, uint &celY, uint &celZ )
 {
 	// place the boid into 'grid-space'
 	Vec3 boidPosRelative = b.Position - minbb;
@@ -250,9 +251,9 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 	celZ = 0;
 
 	// check if the dimension is not 'flat'.
-	celX = (int)( boidPosRelative.X / step.X );
-	celY = (int)( boidPosRelative.Y / step.Y );
-	celZ = (int)( boidPosRelative.Z / step.Z );
+	celX = (uint)( boidPosRelative.X / step.X );
+	celY = (uint)( boidPosRelative.Y / step.Y );
+	celZ = (uint)( boidPosRelative.Z / step.Z );
 }
 
 void Grid::StoreInCells( const vector<Boid> &vb )
@@ -260,12 +261,14 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 	for ( const Boid &b : vb )
 	{
 		// retrieve the index
-		int ix, iy, iz;
+		uint ix, iy, iz;
 		ComputeGridIndex( b, ix, iy, iz );
 
 		// add to the correct cell
-		const int i = CalculateGridCellIndex( ix, iy, iz );
+		const uint i = CalculateGridCellIndex( ix, iy, iz );
+	
 		GridCell &cell = cells[i];		
+		//printf( "%f", cell.count );
 		cell.AddBoid( b );
 	}
 }
@@ -277,7 +280,7 @@ GridCell::GridCell()
 
 void GridCell::AddBoid( const Boid &b )
 {
-	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
+	if ( (*this).count < NUMBER_OF_ELEMENTS_IN_CELL )
 	{
 		posX[count] = b.Position.X;
 		posY[count] = b.Position.Y;
