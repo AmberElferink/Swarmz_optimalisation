@@ -236,16 +236,16 @@ class NearbyBoids
   public:
 	int counter = 0;
 	//currently just initialized at the maximum number that can be in there. Can maybe be done better after bucket implementation.
-	float posX[NUMBER_OF_ELEMENTS_IN_CELL *9];
-	float posY[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float posZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float velX[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float velY[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float velZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float dirX[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float dirY[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float dirZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
-	float distance[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float posX[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float posY[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float posZ[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float velX[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float velY[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float velZ[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float dirX[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float dirY[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float dirZ[NUMBER_OF_ELEMENTS_IN_CELL * 9];
+	float distance[NUMBER_OF_ELEMENTS_IN_CELL * 9];
 
 	//needed to upp count
 	void AddBoid( float posX, float posY, float posZ,
@@ -264,7 +264,7 @@ class NearbyBoids
 		( *this ).dirZ[counter] = dirZ;
 		( *this ).distance[counter] = distance;
 		//printf( "distance: %f\n", distance );
-			counter++;
+		counter++;
 	}
 
 	void Clear()
@@ -334,7 +334,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, const int r, NearbyBoids &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
+	void QueryGrid( const Boid &b, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -350,6 +350,33 @@ class Grid
 	// stores all boids in their corresponding cells.
 	void StoreInCells( const vector<Boid> &b );
 };
+
+static float TransformDistance( float distance, DistanceType type )
+{
+	if ( type == DistanceType::LINEAR )
+	{
+		return distance;
+	}
+	else if ( type == DistanceType::INVERSE_LINEAR )
+	{
+		return distance == 0 ? 0 : 1 / distance;
+	}
+	else if ( type == DistanceType::QUADRATIC )
+	{
+		return std::pow( distance, 2 );
+	}
+	else if ( type == DistanceType::INVERSE_QUADRATIC )
+	{
+		float quad = std::pow( distance, 2 );
+		return quad == 0 ? 0 : 1 / quad;
+	}
+	else
+	{
+		return distance; // throw exception instead?
+	}
+}
+
+static std::mt19937 eng;
 
 class Swarm
 {
@@ -415,8 +442,8 @@ class Swarm
   private:
 	// not thread safe
 	//std::vector<NearbyBoid> vnb;
-	NearbyBoids vnb;
-	std::mt19937 eng;
+	//NearbyBoids vnb;
+	//std::mt19937 eng;
 
 	// read-only thread safe
 	std::vector<Boid> *boids;
@@ -426,36 +453,38 @@ class Swarm
 		Vec3 separationSum;
 		Vec3 headingSum;
 		Vec3 positionSum;
+		int count = 0; //amount of neighbours used to calculate the Sum vectors
 
-		vnb.Clear();
-		getNearbyBoids( b, vnb );
-		b.numberOfNearbyBoids = vnb.counter;
+		//vnb.Clear();
+		getSumVectors( b, separationSum, headingSum, positionSum, count, SeparationType );
 
-		for ( int i = 0; i < vnb.counter; i++ )
-		{
-			if ( vnb.distance[i] < 0.00001 )
-			{
-				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
-			}
-			else
-			{
-				float separationFactor = TransformDistance( vnb.distance[i], SeparationType );
-				//separationSum += closeBoid.direction.Negative() * separationFactor;
-				separationSum.X += ( -vnb.dirX[i] ) * separationFactor;
-				separationSum.Y += ( -vnb.dirY[i] ) * separationFactor;
-				separationSum.Z += ( -vnb.dirZ[i] ) * separationFactor;
-				//printf( "dist: %f, vnb.count: %i, i: %i\n,", vnb.distance[i], vnb.counter, i );
-			}
-			//headingSum += closeBoid.boid.Velocity;
-			headingSum.X += vnb.velX[i];
-			headingSum.Y += vnb.velY[i];
-			headingSum.Z += vnb.velZ[i];
+		//getNearbyBoids( b, vnb );
+		//b.numberOfNearbyBoids = vnb.counter;
 
-			//positionSum += closeBoid.boid.Position;
-			positionSum.X += vnb.posX[i];
-			positionSum.Y += vnb.posY[i];
-			positionSum.Z += vnb.posZ[i];
-		}
+		//for ( int i = 0; i < vnb.counter; i++ )
+		//{
+		//	if ( vnb.distance[i] < 0.00001 )
+		//	{
+		//		separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+		//	}
+		//	else
+		//	{
+		//		float separationFactor = TransformDistance( vnb.distance[i], SeparationType );
+		//		//separationSum += closeBoid.direction.Negative() * separationFactor;
+		//		separationSum.X += ( -vnb.dirX[i] ) * separationFactor;
+		//		separationSum.Y += ( -vnb.dirY[i] ) * separationFactor;
+		//		separationSum.Z += ( -vnb.dirZ[i] ) * separationFactor;
+		//	}
+		//	//headingSum += closeBoid.boid.Velocity;
+		//	headingSum.X += vnb.velX[i];
+		//	headingSum.Y += vnb.velY[i];
+		//	headingSum.Z += vnb.velZ[i];
+
+		//	//positionSum += closeBoid.boid.Position;
+		//	positionSum.X += vnb.posX[i];
+		//	positionSum.Y += vnb.posY[i];
+		//	positionSum.Z += vnb.posZ[i];
+		//}
 		Vec3 steeringTarget = b.Position;
 		float targetDistance = -1;
 		for ( auto &target : SteeringTargets )
@@ -469,13 +498,13 @@ class Swarm
 		}
 
 		// Separation: steer to avoid crowding local flockmates
-		Vec3 separation = vnb.counter > 0 ? separationSum / vnb.counter : separationSum;
+		Vec3 separation = count > 0 ? separationSum / count : separationSum;
 
 		// Alignment: steer towards the average heading of local flockmates
-		Vec3 alignment = vnb.counter > 0 ? headingSum / vnb.counter : headingSum;
+		Vec3 alignment = count > 0 ? headingSum / count : headingSum;
 
 		// Cohesion: steer to move toward the average position of local flockmates
-		Vec3 avgPosition = vnb.counter > 0 ? positionSum / vnb.counter : b.Position;
+		Vec3 avgPosition = count > 0 ? positionSum / count : b.Position;
 		Vec3 cohesion = avgPosition - b.Position;
 
 		// Steering: steer towards the nearest target location (like a moth to the light)
@@ -488,16 +517,40 @@ class Swarm
 		acceleration += cohesion * CohesionWeight;
 		acceleration += steering * SteeringWeight;
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
-		//printf( "baX: %f, baY: %f, baZ: %f, sepX: %f, sepY: %f, sepZ: %f, sepF: %f\n", b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z, separationSum.X, separationSum.Y, separationSum.Z );
 		if ( isnan( b.Acceleration.X ) || isnan( b.Acceleration.Z ) || isnan( b.Acceleration.Z ) )
 			throw( "boidPos is nan" );
 		if ( isinf( b.Acceleration.X ) || isinf( b.Acceleration.Z ) || isinf( b.Acceleration.Z ) )
 			throw( "boidPos is inf" );
 	}
 
-	void getNearbyBoids( const Boid &b, NearbyBoids &vnb ) const
-	{
+	//void getNearbyBoids( const Boid &b, NearbyBoids &vnb ) const
+	//{
 
+	//	// retrieve the index
+	//	int ix, iy, iz;
+	//	grid->ComputeGridIndex( b, ix, iy, iz );
+
+	//	// the offsets
+	//	const int sx = 1;
+	//	const int sy = 1;
+	//	const int sz = 1;
+
+	//	// loop over 'dem shizzles
+	//	for ( int x = ix - sx, lx = ix + sx; x <= lx; x++ )
+	//	{
+	//		for ( int y = iy - sy, ly = iy + sy; y <= ly; y++ )
+	//		{
+	//			for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
+	//			{
+
+	//				grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
+	//			}
+	//		}
+	//	}
+	//}
+
+	void getSumVectors( const Boid &b, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const DistanceType SeparationType )
+	{
 		// retrieve the index
 		int ix, iy, iz;
 		grid->ComputeGridIndex( b, ix, iy, iz );
@@ -515,7 +568,7 @@ class Swarm
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
 
-					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
+					grid->QueryGrid( b, separationSum, headingSum, positionSum, count, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
 				}
 			}
 		}
@@ -532,29 +585,6 @@ class Swarm
 		return voxelPos;
 	}
 
-	float TransformDistance( float distance, DistanceType type )
-	{
-		if ( type == DistanceType::LINEAR )
-		{
-			return distance;
-		}
-		else if ( type == DistanceType::INVERSE_LINEAR )
-		{
-			return distance == 0 ? 0 : 1 / distance;
-		}
-		else if ( type == DistanceType::QUADRATIC )
-		{
-			return std::pow( distance, 2 );
-		}
-		else if ( type == DistanceType::INVERSE_QUADRATIC )
-		{
-			float quad = std::pow( distance, 2 );
-			return quad == 0 ? 0 : 1 / quad;
-		}
-		else
-		{
-			return distance; // throw exception instead?
-		}
-	}
+
 };
 } // namespace sw
