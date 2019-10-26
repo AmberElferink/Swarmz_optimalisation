@@ -14,8 +14,8 @@ void Scenario::Update( float dt )
 	swarm->Update( 0.05f );
 
 	// manually update the position
-	for ( Boid &b : boids )
-	{ b.Position += b.Velocity * dt; }
+	//for ( Boid &b : boids )
+	//{ b.Position += b.Velocity * dt; }
 }
 
 void Scenario::Draw( Surface *screen )

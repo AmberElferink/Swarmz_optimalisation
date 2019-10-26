@@ -388,6 +388,12 @@ class Swarm
 		{
 			b.Velocity = ( b.Velocity + b.Acceleration * delta ).ClampLength( MaxVelocity );
 			b.Position += b.Velocity * delta;
+/*				printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+		*/	if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) )
+				throw( "boidPos is nan" );
+			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) )
+				throw( "boidPos is inf" );
+
 		}
 	}
 
@@ -398,8 +404,15 @@ class Swarm
 
 		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
-		for ( auto &b : *boids )
+		for (auto &b : *boids)
+		{
 			updateBoid( b );
+		printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+		if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
+			throw( "boidPos is nan" );
+		if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
+			throw( "boidPos is inf" );
+		}
 	}
 
   private:
@@ -416,7 +429,6 @@ class Swarm
 		Vec3 separationSum;
 		Vec3 headingSum;
 		Vec3 positionSum;
-		Vec3 po = b.Position;
 
 		vnb.Clear();
 		getNearbyBoids( b, vnb );
@@ -472,7 +484,7 @@ class Swarm
 		Vec3 steering = ( steeringTarget - b.Position ).Normalized() * targetDistance;
 
 		// calculate boid acceleration
-		Vec3 acceleration(0,0,0);
+		Vec3 acceleration;
 		acceleration += separation * SeparationWeight;
 		acceleration += alignment * AlignmentWeight;
 		acceleration += cohesion * CohesionWeight;
@@ -499,6 +511,7 @@ class Swarm
 			{
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
+	
 					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
 				}
 			}

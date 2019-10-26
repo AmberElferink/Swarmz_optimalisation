@@ -253,6 +253,8 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 	celX = (int)( boidPosRelative.X / step.X );
 	celY = (int)( boidPosRelative.Y / step.Y );
 	celZ = (int)( boidPosRelative.Z / step.Z );
+
+	//printf( "bpX: %f, bpY: %f, bpZ: %f, stepX: %f, stepY: %f, stepZ: %f\n", boidPosRelative.X, boidPosRelative.Y, boidPosRelative.Z, step.X, step.Y, step.Z );
 }
 
 void Grid::StoreInCells( const vector<Boid> &vb )
