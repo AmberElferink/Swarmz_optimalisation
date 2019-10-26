@@ -4,6 +4,9 @@ using namespace sw;
 
 Grid::Grid( int nx, int ny, int nz )
 {
+	std::random_device rd;
+	eng = std::mt19937( rd() );
+
 	// receive 'dem dimensions.
 	( *this ).nx = nx;
 	( *this ).ny = ny;
@@ -82,7 +85,7 @@ void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec
 		Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
 
 		float distance = distanceVec.Length();
-			// check if they are the same or not ( todo: this is broken at this point)
+			// check if they are the same or not ( TODO: this is broken at this point)
 		if ( distance > 0.00001f )
 		{
 			// check if the distance is nearby enough
@@ -98,17 +101,11 @@ void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec
 					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
 					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
 				}
-
 				// check if we can 'see it'
 				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
 				{
-					//out.AddBoid( gridCell.posX[i], gridCell.posY[i], gridCell.posZ[i],
-					//			 gridCell.velX[i], gridCell.velY[i], gridCell.velZ[i],
-					//			 distanceVec.X, distanceVec.Y, distanceVec.Z,
-					//			 distance );
-
 					//calculate the sumVecs based on this neighbour
-					float separationFactor = TransformDistance( distance, SeparationType );
+					float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
 					//separationSum += closeBoid.direction.Negative() * separationFactor;
 					separationSum.X += ( -distanceVec.X ) * separationFactor;
 					separationSum.Y += ( -distanceVec.Y ) * separationFactor;
@@ -124,13 +121,11 @@ void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec
 					positionSum.Y += gridCell.posY[i];
 					positionSum.Z += gridCell.posZ[i];
 					count++;
-					//printf( "sepX: %f, sepY: %f, sepZ: %f, headX: %f, headY: %f, headZ: %f, posX: %f, posY: %f, posZ: %f, count: %i\n", separationSum.X, separationSum.Y, separationSum.Z, headingSum.X, headingSum.Y, headingSum.Z, positionSum.X, positionSum.Y, positionSum.Z, count );
-					//printf( "headX: %f, headY: %f, headZ: %f, gridVX: %f, gridVY: %f, gridVZ: %f, count: %i\n", headingSum.X, headingSum.Y, headingSum.Z, gridCell.velX[i], gridCell.velY[i], gridCell.velZ[i], count );
-				
 				}
 			}
 		}
-		else 
+		//if the boids are on top of eachother, separate them.
+		else //this was if( distance < 0.00001f), but right now thats redundant. TODO: currently this also goes off for the boid interacting with itself. This should not be
 		{
 			separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 		}
