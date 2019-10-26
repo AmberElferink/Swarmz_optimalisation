@@ -236,16 +236,16 @@ class NearbyBoids
   public:
 	int counter = 0;
 	//currently just initialized at the maximum number that can be in there. Can maybe be done better after bucket implementation.
-	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
-	float posY[NUMBER_OF_ELEMENTS_IN_CELL];
-	float posZ[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
-	float dirX[NUMBER_OF_ELEMENTS_IN_CELL];
-	float dirY[NUMBER_OF_ELEMENTS_IN_CELL];
-	float dirZ[NUMBER_OF_ELEMENTS_IN_CELL];
-	float distance[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posX[NUMBER_OF_ELEMENTS_IN_CELL *9];
+	float posY[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float posZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float velX[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float velY[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float velZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float dirX[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float dirY[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float dirZ[NUMBER_OF_ELEMENTS_IN_CELL*9];
+	float distance[NUMBER_OF_ELEMENTS_IN_CELL*9];
 
 	//needed to upp count
 	void AddBoid( float posX, float posY, float posZ,
@@ -253,9 +253,9 @@ class NearbyBoids
 				  float dirX, float dirY, float dirZ,
 				  float distance )
 	{
-		(*this).posX[counter] = posX;
-		(*this).posY[counter] = posY;
-		(*this).posZ[counter] = posZ;
+		( *this ).posX[counter] = posX;
+		( *this ).posY[counter] = posY;
+		( *this ).posZ[counter] = posZ;
 		( *this ).velX[counter] = velX;
 		( *this ).velY[counter] = velY;
 		( *this ).velZ[counter] = velZ;
@@ -263,14 +263,14 @@ class NearbyBoids
 		( *this ).dirY[counter] = dirY;
 		( *this ).dirZ[counter] = dirZ;
 		( *this ).distance[counter] = distance;
-		counter++;
+		//printf( "distance: %f\n", distance );
+			counter++;
 	}
 
 	void Clear()
 	{
 		counter = 0;
 	}
-
 };
 
 struct GridCell
@@ -290,8 +290,6 @@ struct GridCell
 	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
 	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
 	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
-
-
 
 	// Adds the given boid to this cell. If
 	// the cell is full, a random boid is
@@ -388,12 +386,11 @@ class Swarm
 		{
 			b.Velocity = ( b.Velocity + b.Acceleration * delta ).ClampLength( MaxVelocity );
 			b.Position += b.Velocity * delta;
-/*				printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
-		*/	if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) )
+			//printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+			if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) )
 				throw( "boidPos is nan" );
 			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) )
 				throw( "boidPos is inf" );
-
 		}
 	}
 
@@ -404,14 +401,14 @@ class Swarm
 
 		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
-		for (auto &b : *boids)
+		for ( auto &b : *boids )
 		{
 			updateBoid( b );
-		printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
-		if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
-			throw( "boidPos is nan" );
-		if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
-			throw( "boidPos is inf" );
+			//printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f\n", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+			if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
+				throw( "boidPos is nan" );
+			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
+				throw( "boidPos is inf" );
 		}
 	}
 
@@ -436,7 +433,7 @@ class Swarm
 
 		for ( int i = 0; i < vnb.counter; i++ )
 		{
-			if ( vnb.distance[i] == 0 )
+			if ( vnb.distance[i] < 0.00001 )
 			{
 				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 			}
@@ -444,9 +441,10 @@ class Swarm
 			{
 				float separationFactor = TransformDistance( vnb.distance[i], SeparationType );
 				//separationSum += closeBoid.direction.Negative() * separationFactor;
-				separationSum.X += -vnb.dirX[i] * separationFactor;
-				separationSum.Y += -vnb.dirY[i] * separationFactor;
-				separationSum.Z += -vnb.dirZ[i] * separationFactor;
+				separationSum.X += ( -vnb.dirX[i] ) * separationFactor;
+				separationSum.Y += ( -vnb.dirY[i] ) * separationFactor;
+				separationSum.Z += ( -vnb.dirZ[i] ) * separationFactor;
+				//printf( "dist: %f, vnb.count: %i, i: %i\n,", vnb.distance[i], vnb.counter, i );
 			}
 			//headingSum += closeBoid.boid.Velocity;
 			headingSum.X += vnb.velX[i];
@@ -456,7 +454,7 @@ class Swarm
 			//positionSum += closeBoid.boid.Position;
 			positionSum.X += vnb.posX[i];
 			positionSum.Y += vnb.posY[i];
-			positionSum.Z += vnb.posZ[i]; 
+			positionSum.Z += vnb.posZ[i];
 		}
 		Vec3 steeringTarget = b.Position;
 		float targetDistance = -1;
@@ -490,6 +488,11 @@ class Swarm
 		acceleration += cohesion * CohesionWeight;
 		acceleration += steering * SteeringWeight;
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
+		//printf( "baX: %f, baY: %f, baZ: %f, sepX: %f, sepY: %f, sepZ: %f, sepF: %f\n", b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z, separationSum.X, separationSum.Y, separationSum.Z );
+		if ( isnan( b.Acceleration.X ) || isnan( b.Acceleration.Z ) || isnan( b.Acceleration.Z ) )
+			throw( "boidPos is nan" );
+		if ( isinf( b.Acceleration.X ) || isinf( b.Acceleration.Z ) || isinf( b.Acceleration.Z ) )
+			throw( "boidPos is inf" );
 	}
 
 	void getNearbyBoids( const Boid &b, NearbyBoids &vnb ) const
@@ -511,7 +514,7 @@ class Swarm
 			{
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
-	
+
 					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
 				}
 			}

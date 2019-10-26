@@ -70,7 +70,7 @@ void Grid::QueryGrid( const Boid &b, const int r, NearbyBoids &out, float Percep
 		return;
 
 	// retrieve the cell
-	const GridCell& gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
+	const GridCell &gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
 
 	// do cell computations, this is copied (for now)
 	// - fix expensive operations
@@ -89,39 +89,35 @@ void Grid::QueryGrid( const Boid &b, const int r, NearbyBoids &out, float Percep
 		Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
 
 		float distance = distanceVec.Length();
-
-		// check if they are the same or not ( todo: this is broken at this point)
-		if ( distance > 0.00001f )
-		{
-			// check if the distance is nearby enough
-			if ( distance <= PerceptionRadius )
+			// check if they are the same or not ( todo: this is broken at this point)
+			if ( distance > 0.00001f )
 			{
-				Vec3 bNegVelocity = b.Velocity.Negative();
-				float bNegVelocityLength = bNegVelocity.Length();
-
-				float blindAngle = 0;
-				if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+				// check if the distance is nearby enough
+				if ( distance <= PerceptionRadius )
 				{
-					Vec3 distanceVecNorm = distanceVec / distance;
-					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
-				}
+					Vec3 bNegVelocity = b.Velocity.Negative();
+					float bNegVelocityLength = bNegVelocity.Length();
 
-				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
-				{
-					out.AddBoid( gridCell.posX[i], gridCell.posY[i], gridCell.posZ[i],
-								 gridCell.velX[i], gridCell.velY[i], gridCell.velZ[i],
-								 distanceVec.X, distanceVec.Y, distanceVec.Z,
-								 distance );					
+					float blindAngle = 0;
+					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+					{
+						Vec3 distanceVecNorm = distanceVec / distance;
+						Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+						blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+					}
+
+					// check if we can 'see it'
+					if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+					{
+						out.AddBoid( gridCell.posX[i], gridCell.posY[i], gridCell.posZ[i],
+									 gridCell.velX[i], gridCell.velY[i], gridCell.velZ[i],
+									 distanceVec.X, distanceVec.Y, distanceVec.Z,
+									 distance );
+					}
 				}
 			}
-		}
 	}
 }
-
-
-
 
 // todo: remove this function
 void Grid::DrawGrid( Surface *surface, Pixel density )
@@ -139,7 +135,6 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			{
 				int index = CalculateGridCellIndex( x, y, z );
 				count += cells[index].count;
-
 			}
 
 			// keep track of the largest
@@ -267,7 +262,7 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
-		GridCell &cell = cells[i];		
+		GridCell &cell = cells[i];
 		cell.AddBoid( b );
 	}
 }
