@@ -95,7 +95,6 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 				return;
 			}
 
-			// check if they are the same or not ( TODO: this is broken at this point)
 			// check if the distance is nearby enough
 			if ( distance <= PerceptionRadius )
 			{
