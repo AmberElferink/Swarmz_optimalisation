@@ -2,6 +2,9 @@
 #include "precomp.h"
 using namespace sw;
 
+//this bundles all the SumVectors being used to calculate the acceleration
+
+
 Grid::Grid( int nx, int ny, int nz )
 {
 	std::random_device rd;
@@ -66,7 +69,7 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 }
 
 // perhaps: add boid index number?
-void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
+void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -79,7 +82,7 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 	//for ( const Boid &target : gridCell.boids ) ;
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
-		if ( index != gridCell.indx[i] )
+		if ( s.index != gridCell.indx[i] )
 		{
 			//compute distance between b and a boid in the gridcell
 			//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
@@ -88,7 +91,7 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 			float distance = distanceVec.Length();
 			if ( distance < 0.001f )
 			{
-				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+				//separationSum += Vec3::GetRandomUniform( eng ) * 1000; //todo implement this
 				return;
 			}
 
@@ -112,20 +115,20 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 					//calculate the sumVecs based on this neighbour
 					float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
 					//separationSum += closeBoid.direction.Negative() * separationFactor;
-					separationSum.X += ( -distanceVec.X ) * separationFactor;
-					separationSum.Y += ( -distanceVec.Y ) * separationFactor;
-					separationSum.Z += ( -distanceVec.Z ) * separationFactor;
+					s.separationSumX += ( -distanceVec.X ) * separationFactor;
+					s.separationSumY += ( -distanceVec.Y ) * separationFactor;
+					s.separationSumZ += ( -distanceVec.Z ) * separationFactor;
 
 					//headingSum += closeBoid.boid.Velocity;
-					headingSum.X += gridCell.velX[i];
-					headingSum.Y += gridCell.velY[i];
-					headingSum.Z += gridCell.velZ[i];
+					s.headingSumX += gridCell.velX[i];
+					s.headingSumY += gridCell.velY[i];
+					s.headingSumZ += gridCell.velZ[i];
 
 					//positionSum += closeBoid.boid.Position;
-					positionSum.X += gridCell.posX[i];
-					positionSum.Y += gridCell.posY[i];
-					positionSum.Z += gridCell.posZ[i];
-					count++;
+					s.positionSumX += gridCell.posX[i];
+					s.positionSumY += gridCell.posY[i];
+					s.positionSumZ += gridCell.posZ[i];
+					s.count++;
 				}
 			}
 		}
