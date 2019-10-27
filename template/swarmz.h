@@ -161,7 +161,7 @@ namespace sw {
     public:
         float PerceptionRadius = 30;
 
-        float SeparationWeight = 120;
+        float SeparationWeight = 1;
         DistanceType SeparationType = DistanceType::INVERSE_QUADRATIC;
 
         float AlignmentWeight = 1;

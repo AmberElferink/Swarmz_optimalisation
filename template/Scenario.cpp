@@ -10,7 +10,7 @@ void Scenario::Update( float dt )
 
 	// set the targets, update each boid
 	swarm->SteeringTargets = targets;
-	swarm->Update( dt );
+	swarm->Update( 0.05f );
 
 	// manually update the position
 	for ( Boid b : boids )
