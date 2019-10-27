@@ -12,7 +12,6 @@ inline Bucket<T>::Bucket( const int n )
 template <typename T>
 inline void Bucket<T>::Clear()
 {
-	// todo: call destructors on T?
 	count = 0;
 }
 

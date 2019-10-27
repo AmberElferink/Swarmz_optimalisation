@@ -4,6 +4,9 @@ using namespace sw;
 
 Grid::Grid( int nx, int ny, int nz )
 {
+	std::random_device rd;
+	eng = std::mt19937( rd() );
+
 	// receive 'dem dimensions.
 	( *this ).nx = nx;
 	( *this ).ny = ny;
@@ -62,7 +65,8 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 	StoreInCells( b );
 }
 
-void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz )
+// perhaps: add boid index number?
+void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -70,64 +74,63 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		return;
 
 	// retrieve the cell
-	const GridCell& gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
-
-	// do cell computations, this is copied (for now)
-	// - fix expensive operations
-	// - apply if statements sooner (e.g., compute
-	// distance -> check, compute angle -> check,
-	// etc), allows for early-opt out.
+	const GridCell &gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
 
 	//for ( const Boid &target : gridCell.boids ) ;
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
-		//compute distance between b and test
-		const Boid &target = gridCell.boids[i];
-		const Vec3 &p1 = b.Position;
-		const Vec3 &p2 = target.Position;
-
-
-		Vec3 distanceVec = p2 - p1;
-		float distance = distanceVec.Length();
-		Vec3 distanceVecNorm = distanceVec / distance;
-		//float dstSqr = b.Position.DistanceToSqr( p2 );
-
-		Vec3 bNegVelocity = b.Velocity.Negative();
-		float bNegVelocityLength = bNegVelocity.Length();
-
-		float blindAngle = 0;
-		if ( bNegVelocityLength > 0.000001f && distance > 0.000001f )
+		if ( index != gridCell.indx[i] )
 		{
-			Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-			blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
-		}
+			//compute distance between b and a boid in the gridcell
+			//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
+			Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
 
-		// check if they are the same or not ( todo: this is broken at this point)
-		if ( distance > 0.001f )
-		{
+			float distance = distanceVec.Length();
+			if ( distance < 0.001f )
+			{
+				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+				return;
+			}
+
+			// check if they are the same or not ( TODO: this is broken at this point)
 			// check if the distance is nearby enough
 			if ( distance <= PerceptionRadius )
 			{
+				Vec3 bNegVelocity = b.Velocity.Negative();
+				float bNegVelocityLength = bNegVelocity.Length();
 
-				float blindAngle = b.Velocity.Negative().AngleTo( distanceVec );
-
+				float blindAngle = 0;
+				if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+				{
+					Vec3 distanceVecNorm = distanceVec / distance;
+					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+				}
 				// check if we can 'see it'
 				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
 				{
-					NearbyBoid nb;
-					// was: nb.boid = &target
-					nb.boid = target;
-					nb.distance = distance;
-					nb.direction = distanceVec;
-					out.emplace_back( nb ); //TODO dit is vaag, moet met mov toch?
+					//calculate the sumVecs based on this neighbour
+					float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
+					//separationSum += closeBoid.direction.Negative() * separationFactor;
+					separationSum.X += ( -distanceVec.X ) * separationFactor;
+					separationSum.Y += ( -distanceVec.Y ) * separationFactor;
+					separationSum.Z += ( -distanceVec.Z ) * separationFactor;
+
+					//headingSum += closeBoid.boid.Velocity;
+					headingSum.X += gridCell.velX[i];
+					headingSum.Y += gridCell.velY[i];
+					headingSum.Z += gridCell.velZ[i];
+
+					//positionSum += closeBoid.boid.Position;
+					positionSum.X += gridCell.posX[i];
+					positionSum.Y += gridCell.posY[i];
+					positionSum.Z += gridCell.posZ[i];
+					count++;
 				}
 			}
 		}
 	}
 }
-
-
-
 
 // todo: remove this function
 void Grid::DrawGrid( Surface *surface, Pixel density )
@@ -145,7 +148,6 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			{
 				int index = CalculateGridCellIndex( x, y, z );
 				count += cells[index].count;
-
 			}
 
 			// keep track of the largest
@@ -263,16 +265,19 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 
 void Grid::StoreInCells( const vector<Boid> &vb )
 {
+	int index = 0;
 	for ( const Boid &b : vb )
 	{
+
 		// retrieve the index
 		int ix, iy, iz;
 		ComputeGridIndex( b, ix, iy, iz );
 
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
-		GridCell &cell = cells[i];		
-		cell.AddBoid( b );
+		GridCell &cell = cells[i];
+		cell.AddBoid( b, index );
+		index++;
 	}
 }
 
@@ -281,11 +286,19 @@ GridCell::GridCell()
 	count = 0;
 }
 
-void GridCell::AddBoid( const Boid &b )
+void GridCell::AddBoid( const Boid &b, int index )
 {
 	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
 	{
-		boids[count] = b;
+		posX[count] = b.Position.X;
+		posY[count] = b.Position.Y;
+		posZ[count] = b.Position.Z;
+		velX[count] = b.Velocity.X;
+		velY[count] = b.Velocity.Y;
+		velZ[count] = b.Velocity.Z;
+		indx[count] = index;
+
+		//boids[count] = b;
 		count++;
 	}
 	else

@@ -223,29 +223,31 @@ struct Boid
 	}
 };
 
-struct NearbyBoid
-{
-	Boid boid;
-	Vec3 direction;
-	float distance;
-};
-
 struct GridCell
 {
   public:
+	// the number of boids in this cell.
+	int count = 0;
+
 	// the default constructor :))
 	GridCell();
 
+	// perhaps: add boid index number?
 	// the buffer for the boids in this cell.
-	Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
-
-	// the number of boids in this cell.
-	int count;
+	//Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float posZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
+	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	int indx[NUMBER_OF_ELEMENTS_IN_CELL];
 
 	// Adds the given boid to this cell. If
 	// the cell is full, a random boid is
 	// evicted.
-	void AddBoid( const Boid &b );
+	// perhaps: add boid index number?
+	void AddBoid( const Boid &b, int index );
 
 	// 'Clears'  this
 	void Clear();
@@ -253,7 +255,7 @@ struct GridCell
 
 class Grid
 {
-
+	std::mt19937 eng; 
   public:
 	// represents the number of cells in the
 	// given dimension.
@@ -285,7 +287,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz );
+	void QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -301,6 +303,33 @@ class Grid
 	// stores all boids in their corresponding cells.
 	void StoreInCells( const vector<Boid> &b );
 };
+
+//this is needed both in the grid and in Swarm, therefore, a static global method is preferred
+static float SWARMZ_TransformDistance( float distance, DistanceType type )
+{
+	if ( type == DistanceType::LINEAR )
+	{
+		return distance;
+	}
+	else if ( type == DistanceType::INVERSE_LINEAR )
+	{
+		return distance == 0 ? 0 : 1 / distance;
+	}
+	else if ( type == DistanceType::QUADRATIC )
+	{
+		return std::pow( distance, 2 );
+	}
+	else if ( type == DistanceType::INVERSE_QUADRATIC )
+	{
+		float quad = std::pow( distance, 2 );
+		return quad == 0 ? 0 : 1 / quad;
+	}
+	else
+	{
+		return distance; // throw exception instead?
+	}
+}
+
 
 class Swarm
 {
@@ -324,8 +353,6 @@ class Swarm
 
 	explicit Swarm( std::vector<Boid> *entities ) : boids( entities )
 	{
-		std::random_device rd;
-		eng = std::mt19937( rd() );
 		grid = new Grid( GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
@@ -347,48 +374,75 @@ class Swarm
 
 		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
+		int index = 0;
 		for ( auto &b : *boids )
-			updateBoid( b );
+		{
+
+			updateBoid( b, index );
+			index++;
+			// printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f\n", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+			//if something horrible goes wrong, let the developer know
+			// cheers
+			if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
+				throw( "boidPos is NaN" );
+			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
+				throw( "boidPos is inf" );
+		}
 	}
 
   private:
-	// not thread safe
-	std::vector<NearbyBoid> vnb;
-	std::mt19937 eng;
-
 	// read-only thread safe
 	std::vector<Boid> *boids;
 
-	void updateBoid( Boid &b )
+	void updateBoid( Boid &b, int index )
 	{
 		Vec3 separationSum;
 		Vec3 headingSum;
 		Vec3 positionSum;
-		Vec3 po = b.Position;
+		int count = 0; //amount of neighbours used to calculate the Sum vectors
 
-		vnb.clear();
-		getNearbyBoids( b, vnb );
-		b.numberOfNearbyBoids = vnb.size();
+		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
+		getSumVectors( b, index, separationSum, headingSum, positionSum, count, SeparationType );
 
-		for ( NearbyBoid &closeBoid : vnb )
+		//now the forces are calculated, accelerate the boids
+		accelerateByForce( b, separationSum, headingSum, positionSum, count );
+	}
+
+	// perhaps: add boid index number?
+	//loop over the nearby gricells to look at each boid in them and calculate the corresponding force the current boid should feel by all of them
+	void getSumVectors( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const DistanceType SeparationType )
+	{
+		// retrieve the index
+		int ix, iy, iz;
+		grid->ComputeGridIndex( b, ix, iy, iz );
+
+		// the offsets
+		const int sx = 1;
+		const int sy = 1;
+		const int sz = 1;
+
+		// loop over all neighbouring grids including the one the boid is in
+		for ( int x = ix - sx, lx = ix + sx; x <= lx; x++ )
 		{
-			if ( closeBoid.distance == 0 )
+			for ( int y = iy - sy, ly = iy + sy; y <= ly; y++ )
 			{
-				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
+				{
+					//sum up all forces with all nearby boids in those cells
+					grid->QueryGrid( b, index, separationSum, headingSum, positionSum, count, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
+				}
 			}
-			else
-			{
-				float separationFactor = TransformDistance( closeBoid.distance, SeparationType );
-				separationSum += closeBoid.direction.Negative() * separationFactor;
-			}
-			headingSum += closeBoid.boid.Velocity;
-			positionSum += closeBoid.boid.Position;
 		}
+	}
+
+	// With the accumulated force vectors, accelerate the boid
+	void accelerateByForce( Boid &b, const Vec3 separationSum, const Vec3 headingSum, const Vec3 positionSum, const int count )
+	{
 		Vec3 steeringTarget = b.Position;
 		float targetDistance = -1;
 		for ( auto &target : SteeringTargets )
 		{
-			float distance = TransformDistance( target.DistanceTo( b.Position ), SteeringTargetType );
+			float distance = SWARMZ_TransformDistance( target.DistanceTo( b.Position ), SteeringTargetType );
 			if ( targetDistance < 0 || distance < targetDistance )
 			{
 				steeringTarget = target;
@@ -397,13 +451,13 @@ class Swarm
 		}
 
 		// Separation: steer to avoid crowding local flockmates
-		Vec3 separation = vnb.size() > 0 ? separationSum / vnb.size() : separationSum;
+		Vec3 separation = count > 0 ? separationSum / count : separationSum;
 
 		// Alignment: steer towards the average heading of local flockmates
-		Vec3 alignment = vnb.size() > 0 ? headingSum / vnb.size() : headingSum;
+		Vec3 alignment = count > 0 ? headingSum / count : headingSum;
 
 		// Cohesion: steer to move toward the average position of local flockmates
-		Vec3 avgPosition = vnb.size() > 0 ? positionSum / vnb.size() : b.Position;
+		Vec3 avgPosition = count > 0 ? positionSum / count : b.Position;
 		Vec3 cohesion = avgPosition - b.Position;
 
 		// Steering: steer towards the nearest target location (like a moth to the light)
@@ -418,111 +472,5 @@ class Swarm
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
 
-	void getNearbyBoids( const Boid &b, std::vector<NearbyBoid> &vnb ) const
-	{
-
-		// retrieve the index
-		int ix, iy, iz;
-		grid->ComputeGridIndex( b, ix, iy, iz );
-
-		// the offsets
-		const int sx = 1;
-		const int sy = 1;
-		const int sz = 1;
-
-		// loop over 'dem shizzles
-		for ( int x = ix - sx, lx = ix + sx; x <= lx; x++ )
-		{
-			for ( int y = iy - sy, ly = iy + sy; y <= ly; y++ )
-			{
-				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
-				{
-					grid->QueryGrid( b, 0, vnb, PerceptionRadius, BlindspotAngleDeg, x, y, z );
-				}
-			}
-		}
-	}
-	//void checkVoxelForBoids( const Boid &b, std::vector<NearbyBoid> &result, const Vec3 &voxelPos ) const
-	//{
-	//	auto iter = voxelCache.find( voxelPos );
-	//	if ( iter != voxelCache.end() )
-	//	{
-	//		for ( Boid *test : iter->second )
-	//		{
-	//			const Vec3 &p1 = b.Position;
-	//			const Vec3 &p2 = test->Position;
-
-	//			Vec3 distanceVec = p2 - p1;
-	//			float distance = distanceVec.Length();
-	//			Vec3 distanceVecNorm = distanceVec / distance;
-
-	//			Vec3 bNegVelocity = b.Velocity.Negative();
-	//			float bNegVelocityLength = bNegVelocity.Length();
-
-	//			float blindAngle = 0;
-	//			if ( bNegVelocityLength > 0.000001f && distance > 0.000001f )
-	//			{
-	//				Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-	//				blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
-	//			}
-
-	//			if ( ( &b ) != test &&
-	//				distance <= PerceptionRadius &&
-	//				( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 ) )
-	//			{
-	//				NearbyBoid nb;
-	//				nb.boid = test;
-	//				nb.distance = distance;
-	//				nb.direction = distanceVec;
-	//				result.push_back( nb );
-	//			}
-	//		}
-	//	}
-	//}
-	//void buildVoxelCache()
-	//{
-	//	voxelCache.clear();
-	//	voxelCache.reserve( boids->size() );
-	//	for ( auto &b : *boids )
-	//	{
-	//		voxelCache[getVoxelForBoid( b )].push_back( &b );
-	//	}
-	//}
-
-	Vec3 getVoxelForBoid( const Boid &b ) const
-	{
-		float r = std::abs( PerceptionRadius );
-		const Vec3 &p = b.Position;
-		Vec3 voxelPos;
-		voxelPos.X = static_cast<int>( p.X / r );
-		voxelPos.Y = static_cast<int>( p.Y / r );
-		voxelPos.Z = static_cast<int>( p.Z / r );
-		return voxelPos;
-	}
-
-	float TransformDistance( float distance, DistanceType type )
-	{
-		if ( type == DistanceType::LINEAR )
-		{
-			return distance;
-		}
-		else if ( type == DistanceType::INVERSE_LINEAR )
-		{
-			return distance == 0 ? 0 : 1 / distance;
-		}
-		else if ( type == DistanceType::QUADRATIC )
-		{
-			return std::pow( distance, 2 );
-		}
-		else if ( type == DistanceType::INVERSE_QUADRATIC )
-		{
-			float quad = std::pow( distance, 2 );
-			return quad == 0 ? 0 : 1 / quad;
-		}
-		else
-		{
-			return distance; // throw exception instead?
-		}
-	}
 };
 } // namespace sw

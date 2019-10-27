@@ -3,6 +3,38 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+
+
+#!/bin/bash
+#
+# This hook will look for code comments marked '//no-commit'
+#    - case-insensitive
+#    - dash is optional
+#    - there may be a space after the //
+#
+# This is used to exclude the windows platform version and compiler from conflicts
+#
+noCommitCount=$(git diff --no-ext-diff --cached | egrep -i --count "(@No|\/\/\s?no[ -]?)commit")
+noCommitCount2=$(git diff --no-ext-diff --cached | egrep -i --count "(@No|\s?<\!--\s?no[ -]?)commit\s?-->")
+if [ "$noCommitCount2" -ne "0" ]; then
+   echo "WARNING: You are attempting to commit changes which include a '<!--no-commit-->'."
+   echo "Please check the following files:"
+   git diff --no-ext-diff --cached --name-only -i -G"(@no|\s?<\!--\s?no[ -]?)commit\s?-->" | sed 's/^/   - /'
+   echo
+   echo "You can ignore this warning by running the commit command with '--no-verify'"
+   exit 1
+fi
+if [ "$noCommitCount" -ne "0" ]; then
+   echo "WARNING: You are attempting to commit changes which include a '//no-commit'."
+   echo "Please check the following files:"
+   git diff --no-ext-diff --cached --name-only -i -G"(@no|\/\/s?no-?)commit" | sed 's/^/   - /'
+   echo
+   echo "You can ignore this warning by running the commit command with '--no-verify'"
+   exit 1
+fi
+
+
+
 /build
 
 # User-specific files
