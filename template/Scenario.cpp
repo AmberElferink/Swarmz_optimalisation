@@ -12,10 +12,6 @@ void Scenario::Update( float dt )
 	// set the targets, update each boid
 	swarm->SteeringTargets = targets;
 	swarm->Update( 0.05f );
-
-	// manually update the position
-	for ( Boid &b : boids )
-	{ b.Position += b.Velocity * dt; }
 }
 
 void Scenario::Draw( Surface *screen )

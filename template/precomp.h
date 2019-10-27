@@ -69,6 +69,9 @@
 // C++ practice but a mere simplification for this small project.
 using namespace std;
 
+#include "Bucket.h"
+#include "BucketPool.h"
+
 #include "Statistics.h"
 
 #include "template.h"

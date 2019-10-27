@@ -2,20 +2,36 @@
 #include "precomp.h"
 using namespace sw;
 
-Grid::Grid( int nx, int ny, int nz )
+Grid::Grid( int numberOfBuckets, int sizeOfBuckets, int nx, int ny, int nz )
 {
 	// receive 'dem dimensions.
 	( *this ).nx = nx;
 	( *this ).ny = ny;
 	( *this ).nz = nz;
 
-	( *this ).cells = new GridCell[nx * ny * nz];
+	// construct an rng
+	std::random_device rd;
+	eng = std::mt19937( rd() );
+
+	// construct a bucket pool
+	bp = new BucketPool( numberOfBuckets, sizeOfBuckets );
+
+	// construct the cells
+	int n = nx * ny * nz;
+	cells.resize( n );
+	for ( int j = 0; j < n; j++ )
+	{
+		cells[j] = new GridCell( numberOfBuckets );
+	}
 }
 
 Grid::~Grid()
 {
 	// huuurrrrr!
-	delete cells;
+	cells.clear();
+
+	// harrrrrr!!
+	bp->~BucketPool();
 }
 
 inline int Grid::CalculateGridCellIndex( int ix, int iy, int iz )
@@ -46,7 +62,9 @@ void Grid::ClearGrid()
 
 	// for every cell, clear it out.
 	for ( int j = 0; j < l; j++ )
-		cells[j].Clear();
+		cells[j]->Clear();
+
+	bp->Clear();
 }
 
 void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
@@ -62,7 +80,8 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 	StoreInCells( b );
 }
 
-void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float PerceptionRadius, float BlindspotAngleDeg, int ix, int iy, int iz )
+// perhaps: add boid index number?
+void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -70,57 +89,81 @@ void Grid::QueryGrid( const Boid &b, const int r, vector<NearbyBoid> &out, float
 		return;
 
 	// retrieve the cell
-	const GridCell& gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
-
-	// do cell computations, this is copied (for now)
-	// - fix expensive operations
-	// - apply if statements sooner (e.g., compute
-	// distance -> check, compute angle -> check,
-	// etc), allows for early-opt out.
-
-	//for ( const Boid &target : gridCell.boids ) ;
-	for ( int i = 0; i < gridCell.count; i++ )
+	const GridCell *gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
+	for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
 	{
-		//compute distance between b and test
-		const Boid &target = gridCell.boids[i];
-
-		Vec3 distanceVec = target.Position - b.Position;
-		float distance = distanceVec.Length();
-
-		// check if they are the same or not ( todo: this is broken at this point)
-		if ( distance > 0.00001f )
+		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
+		//for ( const Boid &target : gridCell.boids ) ;
+		for ( int i = 0; i < bucket->count; i++ )
 		{
-			// check if the distance is nearby enough
-			if ( distance <= PerceptionRadius )
+			if ( s.index != bucket->indx[i] )
 			{
-				Vec3 bNegVelocity = b.Velocity.Negative();
-				float bNegVelocityLength = bNegVelocity.Length();
+				//compute distance between b and a boid in the gridcell
+				//Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
+				float distanceVecX = bucket->posX[i] - b.Position.X;
+				float distanceVecY = bucket->posY[i] - b.Position.Y;
+				float distanceVecZ = bucket->posZ[i] - b.Position.Z;
 
-				float blindAngle = 0;
-				if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+				float distance = FloatVCalc::Length( distanceVecX, distanceVecY, distanceVecZ ); //distanceVec.Length();
+
+				if ( distance < 0.001f )
 				{
-					Vec3 distanceVecNorm = distanceVec / distance;
-					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+					//separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+					return;
 				}
 
-				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+				// check if the distance is nearby enough
+				if ( distance <= PerceptionRadius )
 				{
-					NearbyBoid nb;
-					// was: nb.boid = &target
-					nb.boid = target;
-					nb.distance = distance;
-					nb.direction = distanceVec;
-					out.emplace_back( nb ); //TODO dit is vaag, moet met mov toch?
+					//Vec3 bNegVelocity = b.Velocity.Negative();
+					float bNegVelocityX = -b.Velocity.X;
+					float bNegVelocityY = -b.Velocity.Y;
+					float bNegVelocityZ = -b.Velocity.Z;
+
+					//float bNegVelocityLength = bNegVelocity.Length();
+					float bNegVelocityLength = FloatVCalc::Length( bNegVelocityX, bNegVelocityY, bNegVelocityZ );
+
+					float blindAngle = 0;
+					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+					{
+						//Vec3 distanceVecNorm = distanceVec / distance;
+						float distanceVecNormX = distanceVecX / distance;
+						float distanceVecNormY = distanceVecY / distance;
+						float distanceVecNormZ = distanceVecZ / distance;
+
+						//Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+						float bNegVelocityNormX = bNegVelocityX / bNegVelocityLength;
+						float bNegVelocityNormY = bNegVelocityY / bNegVelocityLength;
+						float bNegVelocityNormZ = bNegVelocityZ / bNegVelocityLength;
+
+						blindAngle = FloatVCalc::AngleToNorm( bNegVelocityNormX, bNegVelocityNormY, bNegVelocityNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
+					}
+					// check if we can 'see it'
+					if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+					{
+						//calculate the sumVecs based on this neighbour
+						float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
+						//separationSum += closeBoid.direction.Negative() * separationFactor;
+						s.separationSumX += ( -distanceVecX ) * separationFactor;
+						s.separationSumY += ( -distanceVecY ) * separationFactor;
+						s.separationSumZ += ( -distanceVecZ ) * separationFactor;
+
+						//headingSum += closeBoid.boid.Velocity;
+						s.headingSumX += bucket->velX[i];
+						s.headingSumY += bucket->velY[i];
+						s.headingSumZ += bucket->velZ[i];
+
+						//positionSum += closeBoid.boid.Position;
+						s.positionSumX += bucket->posX[i];
+						s.positionSumY += bucket->posY[i];
+						s.positionSumZ += bucket->posZ[i];
+						s.count++;
+					}
 				}
 			}
 		}
 	}
 }
-
-
-
 
 // todo: remove this function
 void Grid::DrawGrid( Surface *surface, Pixel density )
@@ -136,9 +179,12 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			int count = 0;
 			for ( int z = 0; z < nz; z++ )
 			{
-				int index = CalculateGridCellIndex( x, y, z );
-				count += cells[index].count;
-
+				const GridCell *gridCell = cells[CalculateGridCellIndex( x, y, z )];
+				for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
+				{
+					const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
+					count += bucket->count;
+				}
 			}
 
 			// keep track of the largest
@@ -158,8 +204,12 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			int count = 0;
 			for ( int z = 0; z < nz; z++ )
 			{
-				int index = CalculateGridCellIndex( x, y, z );
-				count += cells[index].count;
+				const GridCell *gridCell = cells[CalculateGridCellIndex( x, y, z )];
+				for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
+				{
+					const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
+					count += bucket->count;
+				}
 			}
 
 			// draw the box
@@ -256,41 +306,73 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 
 void Grid::StoreInCells( const vector<Boid> &vb )
 {
+	int index = 0;
 	for ( const Boid &b : vb )
 	{
+
 		// retrieve the index
 		int ix, iy, iz;
 		ComputeGridIndex( b, ix, iy, iz );
 
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
-		GridCell &cell = cells[i];		
-		cell.AddBoid( b );
+		GridCell *cell = cells[i];
+		cell->AddBoid( bp, b, index );
+		index++;
 	}
 }
 
-GridCell::GridCell()
+GridCell::GridCell( int n )
 {
-	count = 0;
+	numberOfBuckets = 0;
+	bpi = new int[n];
 }
 
-void GridCell::AddBoid( const Boid &b )
+GridCell::~GridCell()
 {
-	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
+	delete bpi;
+}
+
+void GridCell::AddBoid( BucketPool *bp, const Boid &boid, int index )
+{
+	// base case: the first boid will always trigger a bucket.
+	if ( numberOfBuckets == 0 )
 	{
-		boids[count] = b;
-		count++;
+		bpi[numberOfBuckets] = bp->ReserveBucket();
+		numberOfBuckets++;
 	}
-	else
+
+	Bucket *b = bp->GetBucket( bpi[numberOfBuckets - 1] );
+
+	// consequent case: bucket may be full
+	if ( b->count >= b->maximum )
 	{
-		// multiple policies available:
-		// - do nothing (lose the boid)
-		// - evict with any cache eviction policy, RR preferred
+		// reserve a new bucket
+		bpi[numberOfBuckets] = bp->ReserveBucket();
+
+		// retrieve the bucket as the one we're using right now.
+		b = bp->GetBucket( bpi[numberOfBuckets] );
+
+		// keep track of the amount of buckets we're
+		// using.
+		numberOfBuckets++;
 	}
+
+	// we know the bucket _must_ have space for this
+	// boid, so we can just add it in.
+	int bCount = b->count;
+	b->posX[bCount] = boid.Position.X;
+	b->posY[bCount] = boid.Position.Y;
+	b->posZ[bCount] = boid.Position.Z;
+	b->velX[bCount] = boid.Velocity.X;
+	b->velY[bCount] = boid.Velocity.Y;
+	b->velZ[bCount] = boid.Velocity.Z;
+	b->indx[bCount] = index;
+	b->count++;
 }
 
 void GridCell::Clear()
 {
 	// best clear evor.
-	count = 0;
+	numberOfBuckets = 0;
 }
