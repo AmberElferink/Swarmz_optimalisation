@@ -2,7 +2,7 @@
 using namespace sw;
 
 // represents the number of boids.
-const int COUNT = 2000;
+const int COUNT = 5000;
 
 Scenario *scenario;
 
