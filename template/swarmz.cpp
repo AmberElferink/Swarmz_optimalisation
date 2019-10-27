@@ -193,7 +193,7 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 				const GridCell *gridCell = cells[CalculateGridCellIndex( x, y, z )];
 				for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
 				{
-					const Bucket *bucket = bp->GetBucket( bi );
+					const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
 					count += bucket->count;
 				}
 			}
