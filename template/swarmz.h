@@ -438,6 +438,7 @@ class Swarm
 	void updateBoid( Boid &b, int index )
 	{
 		SumVectors s;
+		s.index = index;
 
 		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
 		getSumVectors( b, s, SeparationType );
@@ -499,21 +500,17 @@ class Swarm
 		//Vec3 alignment = s.count > 0 ? s.headingSum / s.count : headingSum;
 		//Vec3 avgPosition = s.count > 0 ? positionSum / s.count : b.Position;
 
-		float separationX;
-		float separationY;
-		float separationZ;
+		float separationX = s.separationSumX;
+		float separationY = s.separationSumY;
+		float separationZ = s.separationSumZ;
 
-		float alignmentX;
-		float alignmentY;
-		float alignmentZ;
+		float alignmentX = s.headingSumX;
+		float alignmentY = s.headingSumY;
+		float alignmentZ = s.headingSumZ;
 
-		float avgPositionX;
-		float avgPositionY;
-		float avgPositionZ;
-
-		float cohesionX;
-		float cohesionY;
-		float cohesionZ;
+		float avgPositionX = b.Position.X;
+		float avgPositionY = b.Position.Y;
+		float avgPositionZ = b.Position.Z;
 
 		if ( s.count > 0 )
 		{
@@ -531,25 +528,12 @@ class Swarm
 			avgPositionY = s.positionSumY / s.count;
 			avgPositionZ = s.positionSumZ / s.count;
 		}
-		else
-		{
-			separationX = s.separationSumX;
-			separationY = s.separationSumY;
-			separationZ = s.separationSumZ;
 
-			alignmentX = s.headingSumX;
-			alignmentY = s.headingSumY;
-			alignmentZ = s.headingSumZ;
-
-			avgPositionX = b.Position.X;
-			avgPositionY = b.Position.Y;
-			avgPositionZ = b.Position.Z;
-		}
 
 		//Vec3 cohesion = avgPosition - b.Position;
-		cohesionX = avgPositionX - b.Position.X;
-		cohesionY = avgPositionY - b.Position.Y;
-		cohesionZ = avgPositionZ - b.Position.Z;
+		float cohesionX = avgPositionX - b.Position.X;
+		float cohesionY = avgPositionY - b.Position.Y;
+		float cohesionZ = avgPositionZ - b.Position.Z;
 
 		float unWsteeringX = steeringTargetX - b.Position.X;
 		float unWsteeringY = steeringTargetY - b.Position.Y;
