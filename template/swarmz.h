@@ -40,7 +40,7 @@ namespace sw
 #define PI2 6.28318530717958647692
 #define PI 3.14159265
 #define toRadian 57.29577951308f
-#define NUMBER_OF_ELEMENTS_IN_CELL 200
+#define NUMBER_OF_ELEMENTS_IN_CELL 500
 #define GRIDSIZE 20
 
 #define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
@@ -232,6 +232,7 @@ struct GridCell
 	// the default constructor :))
 	GridCell();
 
+	// perhaps: add boid index number?
 	// the buffer for the boids in this cell.
 	//Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
 	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
@@ -240,11 +241,13 @@ struct GridCell
 	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
 	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
 	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
+	int indx[NUMBER_OF_ELEMENTS_IN_CELL];
 
 	// Adds the given boid to this cell. If
 	// the cell is full, a random boid is
 	// evicted.
-	void AddBoid( const Boid &b );
+	// perhaps: add boid index number?
+	void AddBoid( const Boid &b, int index );
 
 	// 'Clears'  this
 	void Clear();
@@ -284,7 +287,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
+	void QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -371,11 +374,15 @@ class Swarm
 
 		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
+		int index = 0;
 		for ( auto &b : *boids )
 		{
-			updateBoid( b );
+
+			updateBoid( b, index );
+			index++;
 			// printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f\n", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
 			//if something horrible goes wrong, let the developer know
+			// cheers
 			if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
 				throw( "boidPos is NaN" );
 			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
@@ -387,7 +394,7 @@ class Swarm
 	// read-only thread safe
 	std::vector<Boid> *boids;
 
-	void updateBoid( Boid &b )
+	void updateBoid( Boid &b, int index )
 	{
 		Vec3 separationSum;
 		Vec3 headingSum;
@@ -395,14 +402,15 @@ class Swarm
 		int count = 0; //amount of neighbours used to calculate the Sum vectors
 
 		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
-		getSumVectors( b, separationSum, headingSum, positionSum, count, SeparationType );
+		getSumVectors( b, index, separationSum, headingSum, positionSum, count, SeparationType );
 
 		//now the forces are calculated, accelerate the boids
 		accelerateByForce( b, separationSum, headingSum, positionSum, count );
 	}
 
+	// perhaps: add boid index number?
 	//loop over the nearby gricells to look at each boid in them and calculate the corresponding force the current boid should feel by all of them
-	void getSumVectors( const Boid &b, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const DistanceType SeparationType )
+	void getSumVectors( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const DistanceType SeparationType )
 	{
 		// retrieve the index
 		int ix, iy, iz;
@@ -421,7 +429,7 @@ class Swarm
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
 					//sum up all forces with all nearby boids in those cells
-					grid->QueryGrid( b, separationSum, headingSum, positionSum, count, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
+					grid->QueryGrid( b, index, separationSum, headingSum, positionSum, count, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
 				}
 			}
 		}
