@@ -2,23 +2,36 @@
 #include "precomp.h"
 using namespace sw;
 
-Grid::Grid( int nx, int ny, int nz )
+Grid::Grid( int numberOfBuckets, int sizeOfBuckets, int nx, int ny, int nz )
 {
-	std::random_device rd;
-	eng = std::mt19937( rd() );
-
 	// receive 'dem dimensions.
 	( *this ).nx = nx;
 	( *this ).ny = ny;
 	( *this ).nz = nz;
 
-	( *this ).cells = new GridCell[nx * ny * nz];
+	// construct an rng
+	std::random_device rd;
+	eng = std::mt19937( rd() );
+
+	// construct a bucket pool
+	bp = new BucketPool( numberOfBuckets, sizeOfBuckets );
+
+	// construct the cells
+	int n = nx * ny * nz;
+	cells.resize( n );
+	for (int j = 0; j < n; j++)
+	{
+		cells[j] = new GridCell( numberOfBuckets );
+	}
 }
 
 Grid::~Grid()
 {
 	// huuurrrrr!
-	delete cells;
+	cells.clear();
+
+	// harrrrrr!!
+	bp->~BucketPool();
 }
 
 inline int Grid::CalculateGridCellIndex( int ix, int iy, int iz )
@@ -49,7 +62,9 @@ void Grid::ClearGrid()
 
 	// for every cell, clear it out.
 	for ( int j = 0; j < l; j++ )
-		cells[j].Clear();
+		cells[j]->Clear();
+
+	bp->Clear();
 }
 
 void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
@@ -74,58 +89,62 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 		return;
 
 	// retrieve the cell
-	const GridCell &gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
-
-	//for ( const Boid &target : gridCell.boids ) ;
-	for ( int i = 0; i < gridCell.count; i++ )
+	const GridCell *gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
+	for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
 	{
-		if ( index != gridCell.indx[i] )
+		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
+		//for ( const Boid &target : gridCell.boids ) ;
+		for ( int i = 0; i < bucket->count; i++ )
 		{
-			//compute distance between b and a boid in the gridcell
-			//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
-			Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
-
-			float distance = distanceVec.Length();
-			if ( distance < 0.001f )
+			if ( index != bucket->indx[i] )
 			{
-				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
-				return;
-			}
+				//compute distance between b and a boid in the gridcell
+				//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
+				Vec3 distanceVec( bucket->posX[i] - b.Position.X, bucket->posY[i] - b.Position.Y, bucket->posZ[i] - b.Position.Z );
 
-			// check if they are the same or not ( TODO: this is broken at this point)
-			// check if the distance is nearby enough
-			if ( distance <= PerceptionRadius )
-			{
-				Vec3 bNegVelocity = b.Velocity.Negative();
-				float bNegVelocityLength = bNegVelocity.Length();
-
-				float blindAngle = 0;
-				if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+				float distance = distanceVec.Length();
+				if ( distance < 0.001f )
 				{
-					Vec3 distanceVecNorm = distanceVec / distance;
-					Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-					blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+					separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+					return;
 				}
-				// check if we can 'see it'
-				if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+
+				// check if they are the same or not ( TODO: this is broken at this point)
+				// check if the distance is nearby enough
+				if ( distance <= PerceptionRadius )
 				{
-					//calculate the sumVecs based on this neighbour
-					float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
-					//separationSum += closeBoid.direction.Negative() * separationFactor;
-					separationSum.X += ( -distanceVec.X ) * separationFactor;
-					separationSum.Y += ( -distanceVec.Y ) * separationFactor;
-					separationSum.Z += ( -distanceVec.Z ) * separationFactor;
+					Vec3 bNegVelocity = b.Velocity.Negative();
+					float bNegVelocityLength = bNegVelocity.Length();
 
-					//headingSum += closeBoid.boid.Velocity;
-					headingSum.X += gridCell.velX[i];
-					headingSum.Y += gridCell.velY[i];
-					headingSum.Z += gridCell.velZ[i];
+					float blindAngle = 0;
+					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+					{
+						Vec3 distanceVecNorm = distanceVec / distance;
+						Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+						blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+					}
+					// check if we can 'see it'
+					if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+					{
+						//calculate the sumVecs based on this neighbour
+						float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
+						//separationSum += closeBoid.direction.Negative() * separationFactor;
+						separationSum.X += ( -distanceVec.X ) * separationFactor;
+						separationSum.Y += ( -distanceVec.Y ) * separationFactor;
+						separationSum.Z += ( -distanceVec.Z ) * separationFactor;
 
-					//positionSum += closeBoid.boid.Position;
-					positionSum.X += gridCell.posX[i];
-					positionSum.Y += gridCell.posY[i];
-					positionSum.Z += gridCell.posZ[i];
-					count++;
+						//positionSum += closeBoid.boid.Position;
+						positionSum.X += bucket->posX[i];
+						positionSum.Y += bucket->posY[i];
+						positionSum.Z += bucket->posZ[i];
+
+						//headingSum += closeBoid.boid.Velocity;
+						headingSum.X += bucket->velX[i];
+						headingSum.Y += bucket->velY[i];
+						headingSum.Z += bucket->velZ[i];
+
+						count++;
+					}
 				}
 			}
 		}
@@ -146,8 +165,12 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			int count = 0;
 			for ( int z = 0; z < nz; z++ )
 			{
-				int index = CalculateGridCellIndex( x, y, z );
-				count += cells[index].count;
+				const GridCell *gridCell = cells[CalculateGridCellIndex( x, y, z )];
+				for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
+				{
+					const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
+					count += bucket->count;
+				}
 			}
 
 			// keep track of the largest
@@ -167,8 +190,12 @@ void Grid::DrawGrid( Surface *surface, Pixel density )
 			int count = 0;
 			for ( int z = 0; z < nz; z++ )
 			{
-				int index = CalculateGridCellIndex( x, y, z );
-				count += cells[index].count;
+				const GridCell *gridCell = cells[CalculateGridCellIndex( x, y, z )];
+				for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
+				{
+					const Bucket *bucket = bp->GetBucket( bi );
+					count += bucket->count;
+				}
 			}
 
 			// draw the box
@@ -275,42 +302,63 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
-		GridCell &cell = cells[i];
-		cell.AddBoid( b, index );
+		GridCell *cell = cells[i];
+		cell->AddBoid( bp, b, index );
 		index++;
 	}
 }
 
-GridCell::GridCell()
+GridCell::GridCell( int n )
 {
-	count = 0;
+	numberOfBuckets = 0;
+	bpi = new int[n];
 }
 
-void GridCell::AddBoid( const Boid &b, int index )
+GridCell::~GridCell()
 {
-	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
-	{
-		posX[count] = b.Position.X;
-		posY[count] = b.Position.Y;
-		posZ[count] = b.Position.Z;
-		velX[count] = b.Velocity.X;
-		velY[count] = b.Velocity.Y;
-		velZ[count] = b.Velocity.Z;
-		indx[count] = index;
+	delete bpi;
+}
 
-		//boids[count] = b;
-		count++;
-	}
-	else
+void GridCell::AddBoid( BucketPool *bp, const Boid &boid, int index )
+{
+	// base case: the first boid will always trigger a bucket.
+	if ( numberOfBuckets == 0 )
 	{
-		// multiple policies available:
-		// - do nothing (lose the boid)
-		// - evict with any cache eviction policy, RR preferred
+		bpi[numberOfBuckets] = bp->ReserveBucket();
+		numberOfBuckets++;
 	}
+
+	Bucket *b = bp->GetBucket( bpi[numberOfBuckets - 1] );
+
+	// consequent case: bucket may be full
+	if ( b->count >= b->maximum )
+	{
+		// reserve a new bucket
+		bpi[numberOfBuckets] = bp->ReserveBucket();
+
+		// retrieve the bucket as the one we're using right now.
+		b = bp->GetBucket( bpi[numberOfBuckets] );
+
+		// keep track of the amount of buckets we're
+		// using.
+		numberOfBuckets++;
+	}
+
+	// we know the bucket _must_ have space for this
+	// boid, so we can just add it in.
+	int bCount = b->count;
+	b->posX[bCount] = boid.Position.X;
+	b->posY[bCount] = boid.Position.Y;
+	b->posZ[bCount] = boid.Position.Z;
+	b->velX[bCount] = boid.Velocity.X;
+	b->velY[bCount] = boid.Velocity.Y;
+	b->velZ[bCount] = boid.Velocity.Z;
+	b->indx[bCount] = index;
+	b->count++;
 }
 
 void GridCell::Clear()
 {
 	// best clear evor.
-	count = 0;
+	numberOfBuckets = 0;
 }

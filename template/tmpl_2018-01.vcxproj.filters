@@ -31,6 +31,7 @@
     <ClCompile Include="Statistics.cpp" />
     <ClCompile Include="swarmz.cpp" />
     <ClCompile Include="Bucket.cpp" />
+    <ClCompile Include="BucketPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game.h" />

@@ -1,22 +1,42 @@
 #include "precomp.h"
 #include "Bucket.h"
 
-template <typename T>
-inline Bucket<T>::Bucket( const int n )
+Bucket::Bucket( const int n )
 {
-	ts = new T[n];
+	// the positions of the boids
+	posX = new float[n];
+	posY = new float[n];
+	posZ = new float[n];
+
+	// the velocities of the boids
+	velX = new float[n];
+	velY = new float[n];
+	velZ = new float[n];
+
+	// the indices of the boids
+	indx = new int[n];
+
 	maximum = n;
 	count = 0;
 }
 
-template <typename T>
-inline void Bucket<T>::Clear()
+Bucket::~Bucket()
+{
+	delete posX;
+	delete posY;
+	delete posZ;
+	delete velX;
+	delete velY;
+	delete velZ;
+	delete indx;
+}
+
+void Bucket::Clear()
 {
 	count = 0;
 }
 
-template <typename T>
-inline bool Bucket<T>::CheckFull()
+bool Bucket::CheckFull()
 {
 	return count >= maximum;
 }

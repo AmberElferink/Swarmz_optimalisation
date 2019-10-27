@@ -40,8 +40,12 @@ namespace sw
 #define PI2 6.28318530717958647692
 #define PI 3.14159265
 #define toRadian 57.29577951308f
-#define NUMBER_OF_ELEMENTS_IN_CELL 500
+
 #define GRIDSIZE 20
+#define NUMBER_OF_BUCKETS ( GRIDSIZE * GRIDSIZE * GRIDSIZE )
+#define NUMBER_OF_ELEMENTS 128 // 1 << 7
+
+
 
 #define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
 									//this means you can calculate the lookup index by: int i = (acosinput + 1) /  indexToAcosRange.
@@ -226,28 +230,20 @@ struct Boid
 struct GridCell
 {
   public:
-	// the number of boids in this cell.
-	int count = 0;
+	// represents the next free bucket slot.
+	int numberOfBuckets = 0;
 
-	// the default constructor :))
-	GridCell();
+	// represents the list of buckets that
+	// this cell holds.
+	int *bpi;
 
-	// perhaps: add boid index number?
-	// the buffer for the boids in this cell.
-	//Boid boids[NUMBER_OF_ELEMENTS_IN_CELL];
-	float posX[NUMBER_OF_ELEMENTS_IN_CELL];
-	float posY[NUMBER_OF_ELEMENTS_IN_CELL];
-	float posZ[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velX[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velY[NUMBER_OF_ELEMENTS_IN_CELL];
-	float velZ[NUMBER_OF_ELEMENTS_IN_CELL];
-	int indx[NUMBER_OF_ELEMENTS_IN_CELL];
+	GridCell( int n );
+	~GridCell();
 
 	// Adds the given boid to this cell. If
 	// the cell is full, a random boid is
 	// evicted.
-	// perhaps: add boid index number?
-	void AddBoid( const Boid &b, int index );
+	void AddBoid( BucketPool *bp, const Boid &b, int index );
 
 	// 'Clears'  this
 	void Clear();
@@ -255,7 +251,10 @@ struct GridCell
 
 class Grid
 {
-	std::mt19937 eng; 
+  private:
+	std::mt19937 eng;
+	BucketPool *bp;
+
   public:
 	// represents the number of cells in the
 	// given dimension.
@@ -267,8 +266,14 @@ class Grid
 	// represents the step sizes within the grid.
 	Vec3 step;
 
-	// regular constructor / deconstructor
-	Grid( int nx, int ny, int nz );
+	// builds a grid that is ready for <n> number of boids,
+	// packaged in buckets of size ( 1 << bs ), which can be stored
+	// in cells that stretch across the dimensions. The number of cells
+	// per dimensions can be configured too.
+	Grid( int n, int b, int nx, int ny, int nz );
+
+	// deconstructs the grid, all memory is freed. The
+	// grid is no longer useable after this.
 	~Grid();
 
 	// computes the index to use for within the grid.
@@ -292,7 +297,7 @@ class Grid
 	void DrawGrid( Surface *surface, Pixel density );
 
   private:
-	GridCell *cells;
+	vector<GridCell*> cells;
 
 	// clears out the grid.
 	void ClearGrid();
@@ -330,7 +335,6 @@ static float SWARMZ_TransformDistance( float distance, DistanceType type )
 	}
 }
 
-
 class Swarm
 {
   public:
@@ -353,7 +357,7 @@ class Swarm
 
 	explicit Swarm( std::vector<Boid> *entities ) : boids( entities )
 	{
-		grid = new Grid( GRIDSIZE, GRIDSIZE, GRIDSIZE );
+		grid = new Grid(NUMBER_OF_BUCKETS, NUMBER_OF_ELEMENTS, GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
 	void Update( float delta )
@@ -471,6 +475,5 @@ class Swarm
 		acceleration += steering * SteeringWeight;
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
-
 };
 } // namespace sw
