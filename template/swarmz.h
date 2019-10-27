@@ -59,6 +59,49 @@ enum class DistanceType
 	INVERSE_QUADRATIC
 };
 
+//class to contain Vec3 methods now they have been split in separate floats
+class FloatVCalc
+{
+  public:
+	static float Length( const float x, const float y, const float z )
+	{
+		return std::sqrtf( x * x + y * y + z * z );
+	}
+	static void Normalize( float &x, float &y, float &z )
+	{
+		float length = Length( x, y, z );
+		if ( length == 0 )
+		{
+			x = 0;
+			y = 0;
+			z = 0;
+			return;
+		}
+		x = x / length;
+		y = y / length;
+		z = z / length;
+	}
+	static float DotProduct( const float vx1, const float vy1, const float vz1, const float vx2, const float vy2, const float vz2 )
+	{
+		return vx1 * vx2 + vy1 * vy2 + vz1 * vz2;
+	}
+
+	static float AngleToNorm( const float vx1, const float vy1, const float vz1, const float vx2, const float vy2, const float vz2 ) //faster if lengths had to be calculated in outer scope anyway
+	{
+		return ACOS( DotProduct( vx1, vy1, vz1, vx2, vy2, vz2 ) ) * toRadian; // number is: 180 / PI
+	}
+	//lookup value in lookup table. x should be between -1 and 1
+	static float ACOS( float x )
+	{
+		assert( x >= -1.1 && x <= 1.1 ); //there can be a bit error due to floats, and it is clamped.
+		x = std::min( x, 1.0f );
+		x = std::max( x, -1.0f );
+
+		int i = ( x + 1 ) / indexToAcosRange;
+		return acosTable[i];
+	}
+};
+
 struct Vec3
 {
 	float X;
@@ -94,17 +137,6 @@ struct Vec3
 		return X * v.X + Y * v.Y + Z * v.Z;
 	}
 
-	//lookup value in lookup table. x should be between -1 and 1
-	inline float ACOS( float x )
-	{
-		assert( x >= -1.1 && x <= 1.1 ); //there can be a bit error due to floats, and it is clamped.
-		x = std::min( x, 1.0f );
-		x = std::max( x, -1.0f );
-
-		int i = ( x + 1 ) / indexToAcosRange;
-		return acosTable[i];
-	}
-
 	// return static_cast<float>(std::acos(DotProduct(v) / (l1 * l2)) * 360 / PI2);
 	float AngleTo( const Vec3 &v ) const
 	{
@@ -119,8 +151,7 @@ struct Vec3
 
 	float AngleToNorm( const Vec3 &v ) //faster if lengths had to be calculated in outer scope anyway
 	{
-		float dotpr = DotProduct( v );
-		return ACOS( DotProduct( v ) ) * toRadian; // number is: 180 / PI
+		return FloatVCalc::ACOS( DotProduct( v ) ) * toRadian; // number is: 180 / PI
 	}
 
 	Vec3 Normalized() const
@@ -191,6 +222,24 @@ struct Vec3
 		return Vec3( r * cos( theta ), r * sin( theta ), z );
 	}
 };
+
+//this is easy to pass through methods
+struct SumVectors
+{
+	int index = 0;
+	int count = 0;
+	float separationSumX = 0;
+	float separationSumY = 0;
+	float separationSumZ = 0;
+	float headingSumX = 0;
+	float headingSumY = 0;
+	float headingSumZ = 0;
+	float positionSumX = 0;
+	float positionSumY = 0;
+	float positionSumZ = 0;
+};
+
+
 
 struct Vec3Hasher
 {
@@ -292,7 +341,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
+	void QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -400,21 +449,19 @@ class Swarm
 
 	void updateBoid( Boid &b, int index )
 	{
-		Vec3 separationSum;
-		Vec3 headingSum;
-		Vec3 positionSum;
-		int count = 0; //amount of neighbours used to calculate the Sum vectors
+		SumVectors s;
+		s.index = index;
 
 		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
-		getSumVectors( b, index, separationSum, headingSum, positionSum, count, SeparationType );
+		getSumVectors( b, s, SeparationType );
 
 		//now the forces are calculated, accelerate the boids
-		accelerateByForce( b, separationSum, headingSum, positionSum, count );
+		accelerateByForce( b, s );
 	}
 
 	// perhaps: add boid index number?
 	//loop over the nearby gricells to look at each boid in them and calculate the corresponding force the current boid should feel by all of them
-	void getSumVectors( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const DistanceType SeparationType )
+	void getSumVectors( const Boid &b, SumVectors &s, const DistanceType SeparationType )
 	{
 		// retrieve the index
 		int ix, iy, iz;
@@ -433,46 +480,111 @@ class Swarm
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
 					//sum up all forces with all nearby boids in those cells
-					grid->QueryGrid( b, index, separationSum, headingSum, positionSum, count, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
+					grid->QueryGrid( b, s, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
 				}
 			}
 		}
 	}
 
 	// With the accumulated force vectors, accelerate the boid
-	void accelerateByForce( Boid &b, const Vec3 separationSum, const Vec3 headingSum, const Vec3 positionSum, const int count )
+	void accelerateByForce( Boid &b, const SumVectors &s )
 	{
-		Vec3 steeringTarget = b.Position;
+		//Vec3 steeringTarget = b.Position;
+		float steeringTargetX = b.Position.X;
+		float steeringTargetY = b.Position.Y;
+		float steeringTargetZ = b.Position.Z;
+
 		float targetDistance = -1;
-		for ( auto &target : SteeringTargets )
+		for ( Vec3 &target : SteeringTargets )
 		{
 			float distance = SWARMZ_TransformDistance( target.DistanceTo( b.Position ), SteeringTargetType );
 			if ( targetDistance < 0 || distance < targetDistance )
 			{
-				steeringTarget = target;
+				steeringTargetX = target.X;
+				steeringTargetY = target.Y;
+				steeringTargetZ = target.Z;
 				targetDistance = distance;
 			}
 		}
 
 		// Separation: steer to avoid crowding local flockmates
-		Vec3 separation = count > 0 ? separationSum / count : separationSum;
+		//Vec3 separation = s.count > 0 ? s.separationSum / s.count : separationSum;
+		//Vec3 alignment = s.count > 0 ? s.headingSum / s.count : headingSum;
+		//Vec3 avgPosition = s.count > 0 ? positionSum / s.count : b.Position;
 
-		// Alignment: steer towards the average heading of local flockmates
-		Vec3 alignment = count > 0 ? headingSum / count : headingSum;
+		float separationX = s.separationSumX;
+		float separationY = s.separationSumY;
+		float separationZ = s.separationSumZ;
 
-		// Cohesion: steer to move toward the average position of local flockmates
-		Vec3 avgPosition = count > 0 ? positionSum / count : b.Position;
-		Vec3 cohesion = avgPosition - b.Position;
+		float alignmentX = s.headingSumX;
+		float alignmentY = s.headingSumY;
+		float alignmentZ = s.headingSumZ;
+
+		float avgPositionX = b.Position.X;
+		float avgPositionY = b.Position.Y;
+		float avgPositionZ = b.Position.Z;
+
+		if ( s.count > 0 )
+		{
+			separationX = s.separationSumX / s.count;
+			separationY = s.separationSumY / s.count;
+			separationZ = s.separationSumZ / s.count;
+
+			// Alignment: steer towards the average heading of local flockmates
+			alignmentX = s.headingSumX / s.count;
+			alignmentY = s.headingSumY / s.count;
+			alignmentZ = s.headingSumZ / s.count;
+
+			// Cohesion: steer to move toward the average position of local flockmates
+			avgPositionX = s.positionSumX / s.count;
+			avgPositionY = s.positionSumY / s.count;
+			avgPositionZ = s.positionSumZ / s.count;
+		}
+
+
+		//Vec3 cohesion = avgPosition - b.Position;
+		float cohesionX = avgPositionX - b.Position.X;
+		float cohesionY = avgPositionY - b.Position.Y;
+		float cohesionZ = avgPositionZ - b.Position.Z;
+
+		float unWsteeringX = steeringTargetX - b.Position.X;
+		float unWsteeringY = steeringTargetY - b.Position.Y;
+		float unWsteeringZ = steeringTargetZ - b.Position.Z;
+		FloatVCalc::Normalize( unWsteeringX, unWsteeringY, unWsteeringZ );
 
 		// Steering: steer towards the nearest target location (like a moth to the light)
-		Vec3 steering = ( steeringTarget - b.Position ).Normalized() * targetDistance;
+		float steeringX = unWsteeringX * targetDistance;
+		float steeringY = unWsteeringY * targetDistance;
+		float steeringZ = unWsteeringZ * targetDistance;
 
 		// calculate boid acceleration
-		Vec3 acceleration;
-		acceleration += separation * SeparationWeight;
-		acceleration += alignment * AlignmentWeight;
-		acceleration += cohesion * CohesionWeight;
-		acceleration += steering * SteeringWeight;
+		float accelerationX = 0;
+		float accelerationY = 0;
+		float accelerationZ = 0;
+
+		//Vec3 acceleration;
+		//acceleration += separation * SeparationWeight;
+		//acceleration += alignment * AlignmentWeight;
+		//acceleration += cohesion * CohesionWeight;
+		//acceleration += steering * SteeringWeight;
+
+		accelerationX += separationX * SeparationWeight;
+		accelerationY += separationY * SeparationWeight;
+		accelerationZ += separationZ * SeparationWeight;
+
+		accelerationX += alignmentX * AlignmentWeight;
+		accelerationY += alignmentY * AlignmentWeight;
+		accelerationZ += alignmentZ * AlignmentWeight;
+
+		accelerationX += cohesionX * CohesionWeight;
+		accelerationY += cohesionY * CohesionWeight;
+		accelerationZ += cohesionZ * CohesionWeight;
+
+		accelerationX += steeringX * SteeringWeight;
+		accelerationY += steeringY * SteeringWeight;
+		accelerationZ += steeringZ * SteeringWeight;
+		
+		Vec3 acceleration( accelerationX, accelerationY, accelerationZ );
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
 };

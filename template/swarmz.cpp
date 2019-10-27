@@ -19,7 +19,7 @@ Grid::Grid( int numberOfBuckets, int sizeOfBuckets, int nx, int ny, int nz )
 	// construct the cells
 	int n = nx * ny * nz;
 	cells.resize( n );
-	for (int j = 0; j < n; j++)
+	for ( int j = 0; j < n; j++ )
 	{
 		cells[j] = new GridCell( numberOfBuckets );
 	}
@@ -81,7 +81,7 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 }
 
 // perhaps: add boid index number?
-void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
+void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -96,32 +96,47 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 		//for ( const Boid &target : gridCell.boids ) ;
 		for ( int i = 0; i < bucket->count; i++ )
 		{
-			if ( index != bucket->indx[i] )
+			if ( s.index != bucket->indx[i] )
 			{
 				//compute distance between b and a boid in the gridcell
-				//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
-				Vec3 distanceVec( bucket->posX[i] - b.Position.X, bucket->posY[i] - b.Position.Y, bucket->posZ[i] - b.Position.Z );
+				//Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
+				float distanceVecX = bucket->posX[i] - b.Position.X;
+				float distanceVecY = bucket->posY[i] - b.Position.Y;
+				float distanceVecZ = bucket->posZ[i] - b.Position.Z;
 
-				float distance = distanceVec.Length();
+				float distance = FloatVCalc::Length( distanceVecX, distanceVecY, distanceVecZ ); //distanceVec.Length();
+
 				if ( distance < 0.001f )
 				{
-					separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+					//separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 					return;
 				}
 
-				// check if they are the same or not ( TODO: this is broken at this point)
 				// check if the distance is nearby enough
 				if ( distance <= PerceptionRadius )
 				{
-					Vec3 bNegVelocity = b.Velocity.Negative();
-					float bNegVelocityLength = bNegVelocity.Length();
+					//Vec3 bNegVelocity = b.Velocity.Negative();
+					float bNegVelocityX = -b.Velocity.X;
+					float bNegVelocityY = -b.Velocity.Y;
+					float bNegVelocityZ = -b.Velocity.Z;
+
+					//float bNegVelocityLength = bNegVelocity.Length();
+					float bNegVelocityLength = FloatVCalc::Length( bNegVelocityX, bNegVelocityY, bNegVelocityZ );
 
 					float blindAngle = 0;
 					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
 					{
-						Vec3 distanceVecNorm = distanceVec / distance;
-						Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-						blindAngle = bNegVelocityNorm.AngleToNorm( distanceVecNorm );
+						//Vec3 distanceVecNorm = distanceVec / distance;
+						float distanceVecNormX = distanceVecX / distance;
+						float distanceVecNormY = distanceVecY / distance;
+						float distanceVecNormZ = distanceVecZ / distance;
+
+						//Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
+						float bNegVelocityNormX = bNegVelocityX / bNegVelocityLength;
+						float bNegVelocityNormY = bNegVelocityY / bNegVelocityLength;
+						float bNegVelocityNormZ = bNegVelocityZ / bNegVelocityLength;
+
+						blindAngle = FloatVCalc::AngleToNorm( bNegVelocityNormX, bNegVelocityNormY, bNegVelocityNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
 					}
 					// check if we can 'see it'
 					if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
@@ -129,21 +144,20 @@ void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headi
 						//calculate the sumVecs based on this neighbour
 						float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
 						//separationSum += closeBoid.direction.Negative() * separationFactor;
-						separationSum.X += ( -distanceVec.X ) * separationFactor;
-						separationSum.Y += ( -distanceVec.Y ) * separationFactor;
-						separationSum.Z += ( -distanceVec.Z ) * separationFactor;
-
-						//positionSum += closeBoid.boid.Position;
-						positionSum.X += bucket->posX[i];
-						positionSum.Y += bucket->posY[i];
-						positionSum.Z += bucket->posZ[i];
+						s.separationSumX += ( -distanceVecX ) * separationFactor;
+						s.separationSumY += ( -distanceVecY ) * separationFactor;
+						s.separationSumZ += ( -distanceVecZ ) * separationFactor;
 
 						//headingSum += closeBoid.boid.Velocity;
-						headingSum.X += bucket->velX[i];
-						headingSum.Y += bucket->velY[i];
-						headingSum.Z += bucket->velZ[i];
+						s.headingSumX += bucket->velX[i];
+						s.headingSumY += bucket->velY[i];
+						s.headingSumZ += bucket->velZ[i];
 
-						count++;
+						//positionSum += closeBoid.boid.Position;
+						s.positionSumX += bucket->posX[i];
+						s.positionSumY += bucket->posY[i];
+						s.positionSumZ += bucket->posZ[i];
+						s.count++;
 					}
 				}
 			}
