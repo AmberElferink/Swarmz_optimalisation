@@ -55,6 +55,49 @@ enum class DistanceType
 	INVERSE_QUADRATIC
 };
 
+//class to contain Vec3 methods now they have been split in separate floats
+class FloatVCalc
+{
+  public:
+	static float Length( const float x, const float y, const float z )
+	{
+		return std::sqrtf( x * x + y * y + z * z );
+	}
+	static void Normalize( float &x, float &y, float &z )
+	{
+		float length = Length( x, y, z );
+		if ( length == 0 )
+		{
+			x = 0;
+			y = 0;
+			z = 0;
+			return;
+		}
+		x = x / length;
+		y = y / length;
+		z = z / length;
+	}
+	static float DotProduct( const float vx1, const float vy1, const float vz1, const float vx2, const float vy2, const float vz2 )
+	{
+		return vx1 * vx2 + vy1 * vy2 + vz1 * vz2;
+	}
+
+	static float AngleToNorm( const float vx1, const float vy1, const float vz1, const float vx2, const float vy2, const float vz2 ) //faster if lengths had to be calculated in outer scope anyway
+	{
+		return ACOS( DotProduct( vx1, vy1, vz1, vx2, vy2, vz2 ) ) * toRadian; // number is: 180 / PI
+	}
+	//lookup value in lookup table. x should be between -1 and 1
+	static float ACOS( float x )
+	{
+		assert( x >= -1.1 && x <= 1.1 ); //there can be a bit error due to floats, and it is clamped.
+		x = std::min( x, 1.0f );
+		x = std::max( x, -1.0f );
+
+		int i = ( x + 1 ) / indexToAcosRange;
+		return acosTable[i];
+	}
+};
+
 struct Vec3
 {
 	float X;
@@ -90,17 +133,6 @@ struct Vec3
 		return X * v.X + Y * v.Y + Z * v.Z;
 	}
 
-	//lookup value in lookup table. x should be between -1 and 1
-	inline float ACOS( float x )
-	{
-		assert( x >= -1.1 && x <= 1.1 ); //there can be a bit error due to floats, and it is clamped.
-		x = std::min( x, 1.0f );
-		x = std::max( x, -1.0f );
-
-		int i = ( x + 1 ) / indexToAcosRange;
-		return acosTable[i];
-	}
-
 	// return static_cast<float>(std::acos(DotProduct(v) / (l1 * l2)) * 360 / PI2);
 	float AngleTo( const Vec3 &v ) const
 	{
@@ -115,8 +147,7 @@ struct Vec3
 
 	float AngleToNorm( const Vec3 &v ) //faster if lengths had to be calculated in outer scope anyway
 	{
-		float dotpr = DotProduct( v );
-		return ACOS( DotProduct( v ) ) * toRadian; // number is: 180 / PI
+		return FloatVCalc::ACOS( DotProduct( v ) ) * toRadian; // number is: 180 / PI
 	}
 
 	Vec3 Normalized() const
@@ -219,29 +250,7 @@ struct Vec3Hasher
 		return ( h1 * 31 + h2 ) * 31 + h3;
 	}
 };
-//class to contain Vec3 methods now they have been split in separate floats
-class FloatVCalc
-{
-  public:
-	static float Length( float x, float y, float z )
-	{
-		return std::sqrtf( x * x + y * y + z * z );
-	}
-	static void Normalize( float &x, float &y, float &z )
-	{
-		float length = Length(x, y, z);
-		if ( length == 0 )
-		{
-			x = 0;
-			y = 0;
-			z = 0;
-			return;
-		}
-		x = x / length;
-		y = y / length;
-		z = z / length;
-	}
-};
+
 
 struct Boid
 {
