@@ -65,9 +65,8 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 	StoreInCells( b );
 }
 
-
-
-void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
+// perhaps: add boid index number?
+void Grid::QueryGrid( const Boid &b, int index, Vec3 &separationSum, Vec3 &headingSum, Vec3 &positionSum, int &count, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType )
 {
 	// if the location is not inside
 	// the grid, skip it.
@@ -80,14 +79,20 @@ void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec
 	//for ( const Boid &target : gridCell.boids ) ;
 	for ( int i = 0; i < gridCell.count; i++ )
 	{
-		//compute distance between b and a boid in the gridcell
-		//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
-		Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
-
-		float distance = distanceVec.Length();
-			// check if they are the same or not ( TODO: this is broken at this point)
-		if ( distance > 0.00001f )
+		if ( index != gridCell.indx[i] )
 		{
+			//compute distance between b and a boid in the gridcell
+			//Vec3 distanceVec = gridCell.boids[i].Position - b.Position;
+			Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
+
+			float distance = distanceVec.Length();
+			if ( distance < 0.001f )
+			{
+				separationSum += Vec3::GetRandomUniform( eng ) * 1000;
+				return;
+			}
+
+			// check if they are the same or not ( TODO: this is broken at this point)
 			// check if the distance is nearby enough
 			if ( distance <= PerceptionRadius )
 			{
@@ -123,11 +128,6 @@ void Grid::QueryGrid( const Boid &b,  Vec3 &separationSum, Vec3 &headingSum, Vec
 					count++;
 				}
 			}
-		}
-		//if the boids are on top of eachother, separate them.
-		else //this was if( distance < 0.00001f), but right now thats redundant. TODO: currently this also goes off for the boid interacting with itself. This should not be
-		{
-			separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 		}
 	}
 }
@@ -261,13 +261,14 @@ void Grid::ComputeGridIndex( const Boid &b, int &celX, int &celY, int &celZ )
 	celX = (int)( boidPosRelative.X / step.X );
 	celY = (int)( boidPosRelative.Y / step.Y );
 	celZ = (int)( boidPosRelative.Z / step.Z );
-
 }
 
 void Grid::StoreInCells( const vector<Boid> &vb )
 {
+	int index = 0;
 	for ( const Boid &b : vb )
 	{
+
 		// retrieve the index
 		int ix, iy, iz;
 		ComputeGridIndex( b, ix, iy, iz );
@@ -275,7 +276,8 @@ void Grid::StoreInCells( const vector<Boid> &vb )
 		// add to the correct cell
 		const int i = CalculateGridCellIndex( ix, iy, iz );
 		GridCell &cell = cells[i];
-		cell.AddBoid( b );
+		cell.AddBoid( b, index );
+		index++;
 	}
 }
 
@@ -284,7 +286,7 @@ GridCell::GridCell()
 	count = 0;
 }
 
-void GridCell::AddBoid( const Boid &b )
+void GridCell::AddBoid( const Boid &b, int index )
 {
 	if ( count < NUMBER_OF_ELEMENTS_IN_CELL )
 	{
@@ -294,6 +296,7 @@ void GridCell::AddBoid( const Boid &b )
 		velX[count] = b.Velocity.X;
 		velY[count] = b.Velocity.Y;
 		velZ[count] = b.Velocity.Z;
+		indx[count] = index;
 
 		//boids[count] = b;
 		count++;
