@@ -107,16 +107,21 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	float bVelocityNegNormY = bVelocityNegY * bVelocityLengthRecpr;
 	float bVelocityNegNormZ = bVelocityNegZ * bVelocityLengthRecpr;
 
+	__m256 toRadian4 = _mm256_set1_ps( toRadian );
+	__m256 ones = _mm256_set1_ps( 1.0f );
+	__m256 negOnes = _mm256_set1_ps( -1.0f );
+	__m256 indexToAcosRange4 = _mm256_set1_ps( indexToAcosRange );
+
 	//---------------------------------------------------------------------
 	// Widening boids
-	__m128 bPositionX4 = _mm_set1_ps( b.Position.X );
-	__m128 bPositionY4 = _mm_set1_ps( b.Position.Y );
-	__m128 bPositionZ4 = _mm_set1_ps( b.Position.Z );
+	__m256 bPositionX4 = _mm256_set1_ps( b.Position.X );
+	__m256 bPositionY4 = _mm256_set1_ps( b.Position.Y );
+	__m256 bPositionZ4 = _mm256_set1_ps( b.Position.Z );
 
-	__m128 bVelocityLengthRecpr4 = _mm_set1_ps( bVelocityLengthRecpr );
-	__m128 bVelocityNegNormX4 = _mm_set1_ps( bVelocityNegNormX );
-	__m128 bVelocityNegNormY4 = _mm_set1_ps( bVelocityNegNormY );
-	__m128 bVelocityNegNormZ4 = _mm_set1_ps( bVelocityNegNormZ );
+	__m256 bVelocityLengthRecpr4 = _mm256_set1_ps( bVelocityLengthRecpr );
+	__m256 bVelocityNegNormX4 = _mm256_set1_ps( bVelocityNegNormX );
+	__m256 bVelocityNegNormY4 = _mm256_set1_ps( bVelocityNegNormY );
+	__m256 bVelocityNegNormZ4 = _mm256_set1_ps( bVelocityNegNormZ );
 
 	// --------------------------------------------------------------------------------
 	// Prepare the structures
@@ -124,27 +129,23 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	// represents the relevant data to work with. align in cachelines in multiples of 64
 	__declspec( align( 64 ) ) union {
 		float directionToBoidX[ELEMENTS_IN_BUCKET];
-		__m128 directionToBoidX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 directionToBoidX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
 		float directionToBoidY[ELEMENTS_IN_BUCKET];
-		__m128 directionToBoidY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 directionToBoidY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
 		float directionToBoidZ[ELEMENTS_IN_BUCKET];
-		__m128 directionToBoidZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 directionToBoidZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
 		float distanceToBoid[ELEMENTS_IN_BUCKET];
-		__m128 distanceToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 distanceToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
 		float anglesToBoid[ELEMENTS_IN_BUCKET];
-		__m128 anglesToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-	__declspec( align( 64 ) ) union {
-		int vectorMask[ELEMENTS_IN_BUCKET];
-		__m128 vectorMask4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 anglesToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 
 	// represents the relevant indices within a bucket
@@ -169,16 +170,16 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 		int phaseOneSimd = ( phaseOne + SIMDSIZE - 1 ) / SIMDSIZE;
 		for ( int i = 0; i < phaseOneSimd; i++ )
 		{
-			directionToBoidX4[i] = _mm_sub_ps( bucket->posX4[i], bPositionX4 );
-			directionToBoidY4[i] = _mm_sub_ps( bucket->posY4[i], bPositionY4 );
-			directionToBoidZ4[i] = _mm_sub_ps( bucket->posZ4[i], bPositionZ4 );
+			directionToBoidX4[i] = _mm256_sub_ps( bucket->posX4[i], bPositionX4 );
+			directionToBoidY4[i] = _mm256_sub_ps( bucket->posY4[i], bPositionY4 );
+			directionToBoidZ4[i] = _mm256_sub_ps( bucket->posZ4[i], bPositionZ4 );
 
-			distanceToBoid4[i] = _mm_sqrt_ps(
-				_mm_add_ps(
-					_mm_add_ps(
-						_mm_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
-						_mm_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
-					_mm_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
+			distanceToBoid4[i] = _mm256_sqrt_ps(
+				_mm256_add_ps(
+					_mm256_add_ps(
+						_mm256_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
+						_mm256_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
+					_mm256_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
 		}
 
 		for ( int i = 0; i < phaseOne; i++ )
@@ -250,40 +251,43 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 			for ( int i = 0; i < phaseTwoSimd; i++ )
 			{
 				// compute the angles
-				__m128 ones = _mm_set1_ps( 1.0f );
-				__m128 recd4 = _mm_div_ps( ones, distanceToBoid4[i] );
-				__m128 distanceVecNormX4 = _mm_mul_ps( directionToBoidX4[i], recd4 );
-				__m128 distanceVecNormY4 = _mm_mul_ps( directionToBoidY4[i], recd4 );
-				__m128 distanceVecNormZ4 = _mm_mul_ps( directionToBoidZ4[i], recd4 );
+
+				__m256 recd4 = _mm256_div_ps( ones, distanceToBoid4[i] );
+				__m256 distanceVecNormX4 = _mm256_mul_ps( directionToBoidX4[i], recd4 );
+				__m256 distanceVecNormY4 = _mm256_mul_ps( directionToBoidY4[i], recd4 );
+				__m256 distanceVecNormZ4 = _mm256_mul_ps( directionToBoidZ4[i], recd4 );
 
 				// compute dotproduct
-				__m128 dotProduct4 = _mm_add_ps(
-					_mm_add_ps(
-						_mm_mul_ps( bVelocityNegNormX4, distanceVecNormX4 ),
-						_mm_mul_ps( bVelocityNegNormY4, distanceVecNormY4 ) ),
-					_mm_mul_ps( bVelocityNegNormZ4, distanceVecNormZ4 ) );
+				__m256 dotProduct4 = _mm256_add_ps(
+					_mm256_add_ps(
+						_mm256_mul_ps( bVelocityNegNormX4, distanceVecNormX4 ),
+						_mm256_mul_ps( bVelocityNegNormY4, distanceVecNormY4 ) ),
+					_mm256_mul_ps( bVelocityNegNormZ4, distanceVecNormZ4 ) );
 
 				// min / max
-				__m128 acos = _mm_min_ps( dotProduct4, ones );
-				__m128 negOnes = _mm_set1_ps( -1.0f );
-				acos = _mm_max_ps( acos, negOnes );
+				__m256 acos = _mm256_min_ps( dotProduct4, ones );
+
+				acos = _mm256_max_ps( acos, negOnes );
 
 				// compute the indices
 				union {
-					int indices[4];
-					__m128i indices4;
+					int indices[SIMDSIZE];
+					__m256i indices4;
 				};
 
-				__m128 indexToAcosRange4 = _mm_set1_ps( indexToAcosRange );
-				indices4 = _mm_castps_si128( _mm_div_ps( ( _mm_add_ps( acos, ones ) ), indexToAcosRange4 ));
+				indices4 = _mm256_cvtps_epi32( _mm256_div_ps( ( _mm256_add_ps( acos, ones ) ), indexToAcosRange4 ) );
 
-				__m128 toRadian4 = _mm_set1_ps( toRadian );
 				// gather operation
-				acos = _mm_mul_ps(_mm_set_ps(
-					acosTable[indices[0]], 
-					acosTable[indices[1]],
-					acosTable[indices[2]],
-					acosTable[indices[3]] ), toRadian4);
+				acos = _mm256_mul_ps( _mm256_set_ps(
+										  acosTable[indices[0]],
+										  acosTable[indices[1]],
+										  acosTable[indices[2]],
+										  acosTable[indices[3]],
+										  acosTable[indices[4]],
+										  acosTable[indices[5]],
+										  acosTable[indices[6]],
+										  acosTable[indices[7]] ),
+									  toRadian4 );
 
 				anglesToBoid4[i] = acos;
 				// DotProduct( vx1, vy1, vz1, vx2, vy2, vz2
@@ -414,7 +418,7 @@ void Grid::ComputeBoundingBox( const vector<Boid> &b, float perceptionRadius )
 	// loop over the boids to find
 	// the actual value's.
 
-	// todo: use SOA and SiMD instructions
+	// todo: use SOA and __m256 instructions
 	// to prevent branching.
 	for ( int i = 0; i < b.size(); i++ )
 	{

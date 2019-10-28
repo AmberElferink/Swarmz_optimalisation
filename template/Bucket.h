@@ -7,31 +7,31 @@ class Bucket
 	// represents the information the bucket can store.
 	__declspec( align( 64 ) ) union {
 		float *posX;
-		__m128 *posX4;
+		__m256 *posX4;
 	};
 	__declspec( align( 64 ) ) union {
 		float *posY;
-		__m128 *posY4;
+		__m256 *posY4;
 	};
 	__declspec( align( 64 ) ) union {
 		float *posZ;
-		__m128 *posZ4;
+		__m256 *posZ4;
 	};
 	__declspec( align( 64 ) ) union {
 		float *velX;
-		__m128 *velX4;
+		__m256 *velX4;
 	};
 	__declspec( align( 64 ) ) union {
 		float *velY;
-		__m128 *velY4;
+		__m256 *velY4;
 	};
 	__declspec( align( 64 ) ) union {
 		float *velZ;
-		__m128 *velZ4;
+		__m256 *velZ4;
 	};
 	__declspec( align( 64 ) ) union {
 		int *indx;
-		__m128 *indx4;
+		__m256 *indx4;
 	};
 
 	// represents the maximum number of
