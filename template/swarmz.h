@@ -121,10 +121,6 @@ namespace sw
 #define PI 3.14159265
 #define toRadian 57.29577951308f
 
-#define GRIDSIZE 20
-#define NUMBER_OF_BUCKETS ( GRIDSIZE * GRIDSIZE * GRIDSIZE )
-#define NUMBER_OF_ELEMENTS 16 // 1 << 4
-
 #define NUMBER_OF_THREADS 4
 
 #define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
@@ -485,7 +481,7 @@ class Swarm
 	explicit Swarm( std::vector<Boid> *entities ) : boids( entities )
 	{
 		// construct the grid
-		grid = new Grid( NUMBER_OF_BUCKETS, NUMBER_OF_ELEMENTS, GRIDSIZE, GRIDSIZE, GRIDSIZE );
+		grid = new Grid( NUMBER_OF_BUCKETS, ELEMENTS_IN_BUCKET, GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
 	void Update( float delta )

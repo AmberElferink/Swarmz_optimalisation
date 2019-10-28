@@ -109,8 +109,6 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 
 	__m256 toRadian4 = _mm256_set1_ps( toRadian );
 	__m256 ones = _mm256_set1_ps( 1.0f );
-	__m256 negOnes = _mm256_set1_ps( -1.0f );
-	__m256 indexToAcosRange4 = _mm256_set1_ps( indexToAcosRange );
 
 	//---------------------------------------------------------------------
 	// Widening boids
@@ -149,7 +147,7 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	};
 
 	// represents the relevant indices within a bucket
-	int relevantIndices[NUMBER_OF_ELEMENTS];
+	int relevantIndices[ELEMENTS_IN_BUCKET];
 
 	// --------------------------------------------------------------------------------
 	// Perform the computations
@@ -265,31 +263,8 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 					_mm256_mul_ps( bVelocityNegNormZ4, distanceVecNormZ4 ) );
 
 				// min / max
-				__m256 acos = _mm256_min_ps( dotProduct4, ones );
+				anglesToBoid4[i] = _mm256_mul_ps( toRadian4, _mm256_acos_ps( dotProduct4 ) );
 
-				acos = _mm256_max_ps( acos, negOnes );
-
-				// compute the indices
-				union {
-					int indices[SIMDSIZE];
-					__m256i indices4;
-				};
-
-				indices4 = _mm256_cvtps_epi32( _mm256_div_ps( ( _mm256_add_ps( acos, ones ) ), indexToAcosRange4 ) );
-
-				// gather operation
-				acos = _mm256_mul_ps( _mm256_set_ps(
-										  acosTable[indices[0]],
-										  acosTable[indices[1]],
-										  acosTable[indices[2]],
-										  acosTable[indices[3]],
-										  acosTable[indices[4]],
-										  acosTable[indices[5]],
-										  acosTable[indices[6]],
-										  acosTable[indices[7]] ),
-									  toRadian4 );
-
-				anglesToBoid4[i] = acos;
 				// DotProduct( vx1, vy1, vz1, vx2, vy2, vz2
 				//vx1 * vx2 + vy1 * vy2 + vz1 * vz2;
 				//anglesToBoid[i] = FloatVCalc::AngleToNorm( bVelocityNegNormX4, bVelocityNegNormY4, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
