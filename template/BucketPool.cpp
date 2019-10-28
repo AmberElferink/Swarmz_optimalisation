@@ -69,7 +69,7 @@ void BucketPool::Clear()
 		bucket->Clear();
 	}
 
-	printf( "Number of buckets in use: %i\r\n", nextBucket );
+	// printf( "Number of buckets in use: %i\r\n", nextBucket );
 	nextBucket = 0;
 }
 

@@ -127,14 +127,16 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
 					{
 						//Vec3 distanceVecNorm = distanceVec / distance;
-						float distanceVecNormX = distanceVecX / distance;
-						float distanceVecNormY = distanceVecY / distance;
-						float distanceVecNormZ = distanceVecZ / distance;
+						float recd = 1.0f / distance;
+						float distanceVecNormX = distanceVecX * recd;
+						float distanceVecNormY = distanceVecY * recd;
+						float distanceVecNormZ = distanceVecZ * recd;
 
 						//Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-						float bNegVelocityNormX = bNegVelocityX / bNegVelocityLength;
-						float bNegVelocityNormY = bNegVelocityY / bNegVelocityLength;
-						float bNegVelocityNormZ = bNegVelocityZ / bNegVelocityLength;
+						float recv = 1.0f / bNegVelocityLength;
+						float bNegVelocityNormX = bNegVelocityX * recv;
+						float bNegVelocityNormY = bNegVelocityY * recv;
+						float bNegVelocityNormZ = bNegVelocityZ * recv;
 
 						blindAngle = FloatVCalc::AngleToNorm( bNegVelocityNormX, bNegVelocityNormY, bNegVelocityNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
 					}

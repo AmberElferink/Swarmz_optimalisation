@@ -31,10 +31,90 @@
 
 #include <cmath>
 #include <random>
-#include <unordered_map>
 #include <vector>
 
+// multithreading libraries
+#include <mutex>
 #include <atomic>
+#include <thread>
+
+// threading planning
+
+// represents the number of jobs. Could, for example,
+// be the number of boids. Or the number of boids
+// over ten.
+atomic<int> jobs;
+enum ThreadWork
+{
+	UpdateBoids = 1,
+	StoreBoids = 2,
+	ComputeBoundingBox = 4
+};
+
+ThreadWork type_of_work;
+
+// send additional parameters through
+// and store them accordingly. All data
+// send through must be read only.
+void ThreadWorker( int id )
+{
+	// construct data that every thread will need
+	//  - some rng
+
+	while ( true )
+	{
+
+		// wait for the main thread to send a signal
+		// ...? Conditional_variable?
+		// C#: signalToThread.WaitOne(-1);
+		while ( true )
+		{
+
+			// find our job number
+			// C#: int job = Interlocked.Decrement(ref jobs);
+
+			// check if we're done, if so: send a signal to
+			// the main thread. Again, conditional_variable?
+			// C#: if ( job < 0 ) { signalToMain[threadNumber].Set(); break; }
+
+			// depending on the actual work, do something with it
+			switch ( type_of_work )
+			{
+
+			case UpdateBoids:
+				// do work
+				break;
+
+			case StoreBoids:
+				// do work
+				break;
+
+			case ComputeBoundingBox:
+				// do work
+				break;
+			}
+		}
+	}
+}
+
+// todo: this should not be generalized
+void StartAndWaitThreads()
+{
+	// Compute the number of jobs, for whatever job
+	// we wish to do
+	// C#: jobs = ( ( width / squareSize ) + 1 ) * ( ( height / squareSize ) + 1 );
+
+	// reset the 'i am done' signals, then put the workers to work.
+	// C#: for ( int j = 0; j < processors; j++ ) signalToMain[j].Reset();
+
+	// start the workers
+	// workers be like: vrrroooooooommM!!
+	// signalToThread.Set();
+
+	// wait for the workers to be done.
+	// C#: for ( int j = 0; j < processors; j++ ) signalToMain[j].WaitOne( -1 ); // main be like: zzzzzzzz....
+}
+
 namespace sw
 {
 #define PI2 6.28318530717958647692
@@ -43,9 +123,9 @@ namespace sw
 
 #define GRIDSIZE 20
 #define NUMBER_OF_BUCKETS ( GRIDSIZE * GRIDSIZE * GRIDSIZE )
-#define NUMBER_OF_ELEMENTS 128 // 1 << 7
+#define NUMBER_OF_ELEMENTS 16 // 1 << 4
 
-
+#define NUMBER_OF_THREADS 4
 
 #define indexToAcosRange 0.0078125f //this is 2/256. The acos table was filled with acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 ); \
 									//this means you can calculate the lookup index by: int i = (acosinput + 1) /  indexToAcosRange.
@@ -239,8 +319,6 @@ struct SumVectors
 	float positionSumZ = 0;
 };
 
-
-
 struct Vec3Hasher
 {
 
@@ -346,7 +424,7 @@ class Grid
 	void DrawGrid( Surface *surface, Pixel density );
 
   private:
-	vector<GridCell*> cells;
+	vector<GridCell *> cells;
 
 	// clears out the grid.
 	void ClearGrid();
@@ -371,11 +449,11 @@ static float SWARMZ_TransformDistance( float distance, DistanceType type )
 	}
 	else if ( type == DistanceType::QUADRATIC )
 	{
-		return std::pow( distance, 2 );
+		return distance * distance;
 	}
 	else if ( type == DistanceType::INVERSE_QUADRATIC )
 	{
-		float quad = std::pow( distance, 2 );
+		float quad = distance * distance;
 		return quad == 0 ? 0 : 1 / quad;
 	}
 	else
@@ -406,7 +484,8 @@ class Swarm
 
 	explicit Swarm( std::vector<Boid> *entities ) : boids( entities )
 	{
-		grid = new Grid(NUMBER_OF_BUCKETS, NUMBER_OF_ELEMENTS, GRIDSIZE, GRIDSIZE, GRIDSIZE );
+		// construct the grid
+		grid = new Grid( NUMBER_OF_BUCKETS, NUMBER_OF_ELEMENTS, GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
 	void Update( float delta )
@@ -541,7 +620,6 @@ class Swarm
 			avgPositionZ = s.positionSumZ / s.count;
 		}
 
-
 		//Vec3 cohesion = avgPosition - b.Position;
 		float cohesionX = avgPositionX - b.Position.X;
 		float cohesionY = avgPositionY - b.Position.Y;
@@ -583,7 +661,7 @@ class Swarm
 		accelerationX += steeringX * SteeringWeight;
 		accelerationY += steeringY * SteeringWeight;
 		accelerationZ += steeringZ * SteeringWeight;
-		
+
 		Vec3 acceleration( accelerationX, accelerationY, accelerationZ );
 		b.Acceleration = acceleration.ClampLength( MaxAcceleration );
 	}
