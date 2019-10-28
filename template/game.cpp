@@ -191,8 +191,6 @@ void Game::Init()
 
 	__m128 c = _mm_cmpeq_ps( a, b );
 
-
-
 	scenario = new ScenarioCircle();
 	scenario->Init( COUNT );
 }

@@ -107,15 +107,45 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	float bVelocityNegNormY = bVelocityNegY * bVelocityLengthRecpr;
 	float bVelocityNegNormZ = bVelocityNegZ * bVelocityLengthRecpr;
 
+	//---------------------------------------------------------------------
+	// Widening boids
+	__m128 bPositionX4 = _mm_set1_ps( b.Position.X );
+	__m128 bPositionY4 = _mm_set1_ps( b.Position.Y );
+	__m128 bPositionZ4 = _mm_set1_ps( b.Position.Z );
+
+	__m128 bVelocityLengthRecpr4 = _mm_set1_ps( bVelocityLengthRecpr );
+	__m128 bVelocityNegNormX4 = _mm_set1_ps( bVelocityNegNormX );
+	__m128 bVelocityNegNormY4 = _mm_set1_ps( bVelocityNegNormY );
+	__m128 bVelocityNegNormZ4 = _mm_set1_ps( bVelocityNegNormZ );
+
 	// --------------------------------------------------------------------------------
 	// Prepare the structures
 
-	// represents the relevant data to work with.
-	__declspec( align( 64 ) ) float directionToBoidX[NUMBER_OF_ELEMENTS];
-	__declspec( align( 64 ) ) float directionToBoidY[NUMBER_OF_ELEMENTS];
-	__declspec( align( 64 ) ) float directionToBoidZ[NUMBER_OF_ELEMENTS];
-	__declspec( align( 64 ) ) float distanceToBoid[NUMBER_OF_ELEMENTS];
-	__declspec( align( 64 ) ) float anglesToBoid[NUMBER_OF_ELEMENTS];
+	// represents the relevant data to work with. align in cachelines in multiples of 64
+	__declspec( align( 64 ) ) union {
+		float directionToBoidX[ELEMENTS_IN_BUCKET];
+		__m128 directionToBoidX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+	__declspec( align( 64 ) ) union {
+		float directionToBoidY[ELEMENTS_IN_BUCKET];
+		__m128 directionToBoidY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+	__declspec( align( 64 ) ) union {
+		float directionToBoidZ[ELEMENTS_IN_BUCKET];
+		__m128 directionToBoidZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+	__declspec( align( 64 ) ) union {
+		float distanceToBoid[ELEMENTS_IN_BUCKET];
+		__m128 distanceToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+	__declspec( align( 64 ) ) union {
+		float anglesToBoid[ELEMENTS_IN_BUCKET];
+		__m128 anglesToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+	__declspec( align( 64 ) ) union {
+		int vectorMask[ELEMENTS_IN_BUCKET];
+		__m128 vectorMask4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
 
 	// represents the relevant indices within a bucket
 	int relevantIndices[NUMBER_OF_ELEMENTS];
@@ -136,17 +166,23 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 		//  - compute all the distances
 		//  - store the relevant indices
 
+		int phaseOneSimd = ( phaseOne + SIMDSIZE - 1 ) / SIMDSIZE;
+		for ( int i = 0; i < phaseOneSimd; i++ )
+		{
+			directionToBoidX4[i] = _mm_sub_ps( bucket->posX4[i], bPositionX4 );
+			directionToBoidY4[i] = _mm_sub_ps( bucket->posY4[i], bPositionY4 );
+			directionToBoidZ4[i] = _mm_sub_ps( bucket->posZ4[i], bPositionZ4 );
+
+			distanceToBoid4[i] = _mm_sqrt_ps(
+				_mm_add_ps(
+					_mm_add_ps(
+						_mm_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
+						_mm_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
+					_mm_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
+		}
+
 		for ( int i = 0; i < phaseOne; i++ )
 		{
-			directionToBoidX[i] = bucket->posX[i] - b.Position.X;
-			directionToBoidY[i] = bucket->posY[i] - b.Position.Y;
-			directionToBoidZ[i] = bucket->posZ[i] - b.Position.Z;
-
-			distanceToBoid[i] = sqrtf(
-				directionToBoidX[i] * directionToBoidX[i] +
-				directionToBoidY[i] * directionToBoidY[i] +
-				directionToBoidZ[i] * directionToBoidZ[i] );
-
 			relevantIndices[i] = i;
 		}
 
@@ -210,16 +246,49 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 			// we're moving, find out which boids
 			// we can see without moving our
 			// head too much
-
-			for ( int i = 0; i < phaseTwo; i++ )
+			int phaseTwoSimd = ( phaseTwo + SIMDSIZE - 1 ) / SIMDSIZE;
+			for ( int i = 0; i < phaseTwoSimd; i++ )
 			{
 				// compute the angles
-				float recd = 1.0f / distanceToBoid[i];
-				float distanceVecNormX = directionToBoidX[i] * recd;
-				float distanceVecNormY = directionToBoidY[i] * recd;
-				float distanceVecNormZ = directionToBoidZ[i] * recd;
+				__m128 ones = _mm_set1_ps( 1.0f );
+				__m128 recd4 = _mm_div_ps( ones, distanceToBoid4[i] );
+				__m128 distanceVecNormX4 = _mm_mul_ps( directionToBoidX4[i], recd4 );
+				__m128 distanceVecNormY4 = _mm_mul_ps( directionToBoidY4[i], recd4 );
+				__m128 distanceVecNormZ4 = _mm_mul_ps( directionToBoidZ4[i], recd4 );
 
-				anglesToBoid[i] = FloatVCalc::AngleToNorm( bVelocityNegNormX, bVelocityNegNormY, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
+				// compute dotproduct
+				__m128 dotProduct4 = _mm_add_ps(
+					_mm_add_ps(
+						_mm_mul_ps( bVelocityNegNormX4, distanceVecNormX4 ),
+						_mm_mul_ps( bVelocityNegNormY4, distanceVecNormY4 ) ),
+					_mm_mul_ps( bVelocityNegNormZ4, distanceVecNormZ4 ) );
+
+				// min / max
+				__m128 acos = _mm_min_ps( dotProduct4, ones );
+				__m128 negOnes = _mm_set1_ps( -1.0f );
+				acos = _mm_max_ps( acos, negOnes );
+
+				// compute the indices
+				union {
+					int indices[4];
+					__m128i indices4;
+				};
+
+				__m128 indexToAcosRange4 = _mm_set1_ps( indexToAcosRange );
+				indices4 = _mm_castps_si128( _mm_div_ps( ( _mm_add_ps( acos, ones ) ), indexToAcosRange4 ));
+
+				__m128 toRadian4 = _mm_set1_ps( toRadian );
+				// gather operation
+				acos = _mm_mul_ps(_mm_set_ps(
+					acosTable[indices[0]], 
+					acosTable[indices[1]],
+					acosTable[indices[2]],
+					acosTable[indices[3]] ), toRadian4);
+
+				anglesToBoid4[i] = acos;
+				// DotProduct( vx1, vy1, vz1, vx2, vy2, vz2
+				//vx1 * vx2 + vy1 * vy2 + vz1 * vz2;
+				//anglesToBoid[i] = FloatVCalc::AngleToNorm( bVelocityNegNormX4, bVelocityNegNormY4, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
 			}
 
 			for ( int i = 0; i < phaseTwo; i++ )
@@ -233,7 +302,7 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 				directionToBoidY[phaseThree] = directionToBoidY[i];
 				directionToBoidZ[phaseThree] = directionToBoidZ[i];
 
-				distanceToBoid[phaseThree] = distanceToBoid[i]; 
+				distanceToBoid[phaseThree] = distanceToBoid[i];
 
 				relevantIndices[phaseThree] = relevantIndices[i];
 
@@ -244,7 +313,7 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 		// phase 3: update the SumVectors values with the remaining values
 
 		s.count += phaseThree;
-		for (int i = 0; i < phaseThree; i++)
+		for ( int i = 0; i < phaseThree; i++ )
 		{
 			//calculate the sumVecs based on this neighbour
 			float separationFactor = SWARMZ_TransformDistance( distanceToBoid[i], SeparationType );

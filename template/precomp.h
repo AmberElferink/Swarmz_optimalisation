@@ -11,6 +11,10 @@
 
 #define SCRWIDTH 1440
 #define SCRHEIGHT 810
+
+#define ELEMENTS_IN_BUCKET 16
+#define SIMDSIZE 4
+
 // #define FULLSCREEN
 // #define ADVANCEDGL	// faster if your system supports it
 
