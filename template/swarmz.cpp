@@ -88,26 +88,50 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	if ( !CheckInsideGrid( ix, iy, iz ) )
 		return;
 
+	float epsilon = 0.0001f;
+
+	// --------------------------------------------------------------------------------
+	// Loop hoisting
+
+	// compute negative direction
+	float bVelocityNegX = -b.Velocity.X;
+	float bVelocityNegY = -b.Velocity.Y;
+	float bVelocityNegZ = -b.Velocity.Z;
+
+	// compute length
+	float bVelocityLength = FloatVCalc::Length( b.Velocity.X, b.Velocity.Y, b.Velocity.Z );
+
+	// compute negative normalized direction
+	float bVelocityLengthRecpr = 1.0f / bVelocityLength;
+	float bVelocityNegNormX = bVelocityNegX * bVelocityLengthRecpr;
+	float bVelocityNegNormY = bVelocityNegY * bVelocityLengthRecpr;
+	float bVelocityNegNormZ = bVelocityNegZ * bVelocityLengthRecpr;
+
+	// --------------------------------------------------------------------------------
+	// Perform the computations
+
 	// retrieve the cell
 	const GridCell *gridCell = cells[CalculateGridCellIndex( ix, iy, iz )];
 	for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
 	{
+		// retrieve the bucket
 		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
-		//for ( const Boid &target : gridCell.boids ) ;
+
+		// check if there are any boids in the bucket
 		for ( int i = 0; i < bucket->count; i++ )
 		{
 			if ( s.index != bucket->indx[i] )
 			{
 				//compute distance between b and a boid in the gridcell
-				//Vec3 distanceVec( gridCell.posX[i] - b.Position.X, gridCell.posY[i] - b.Position.Y, gridCell.posZ[i] - b.Position.Z );
 				float distanceVecX = bucket->posX[i] - b.Position.X;
 				float distanceVecY = bucket->posY[i] - b.Position.Y;
 				float distanceVecZ = bucket->posZ[i] - b.Position.Z;
 
-				float distance = FloatVCalc::Length( distanceVecX, distanceVecY, distanceVecZ ); //distanceVec.Length();
+				float distance = FloatVCalc::Length( distanceVecX, distanceVecY, distanceVecZ );
 
 				if ( distance < 0.001f )
 				{
+					// todo
 					//separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 					return;
 				}
@@ -115,16 +139,9 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 				// check if the distance is nearby enough
 				if ( distance <= PerceptionRadius )
 				{
-					//Vec3 bNegVelocity = b.Velocity.Negative();
-					float bNegVelocityX = -b.Velocity.X;
-					float bNegVelocityY = -b.Velocity.Y;
-					float bNegVelocityZ = -b.Velocity.Z;
-
-					//float bNegVelocityLength = bNegVelocity.Length();
-					float bNegVelocityLength = FloatVCalc::Length( bNegVelocityX, bNegVelocityY, bNegVelocityZ );
 
 					float blindAngle = 0;
-					if ( bNegVelocityLength > 0.000001f && distance > 0.00001f )
+					if ( bVelocityLength > epsilon && distance > epsilon )
 					{
 						//Vec3 distanceVecNorm = distanceVec / distance;
 						float recd = 1.0f / distance;
@@ -132,16 +149,10 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 						float distanceVecNormY = distanceVecY * recd;
 						float distanceVecNormZ = distanceVecZ * recd;
 
-						//Vec3 bNegVelocityNorm = bNegVelocity / bNegVelocityLength;
-						float recv = 1.0f / bNegVelocityLength;
-						float bNegVelocityNormX = bNegVelocityX * recv;
-						float bNegVelocityNormY = bNegVelocityY * recv;
-						float bNegVelocityNormZ = bNegVelocityZ * recv;
-
-						blindAngle = FloatVCalc::AngleToNorm( bNegVelocityNormX, bNegVelocityNormY, bNegVelocityNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
+						blindAngle = FloatVCalc::AngleToNorm( bVelocityNegNormX, bVelocityNegNormY, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
 					}
 					// check if we can 'see it'
-					if ( BlindspotAngleDeg <= blindAngle || bNegVelocityLength == 0 )
+					if ( BlindspotAngleDeg <= blindAngle || bVelocityLength <= epsilon )
 					{
 						//calculate the sumVecs based on this neighbour
 						float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
