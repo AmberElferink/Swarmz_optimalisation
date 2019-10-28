@@ -233,7 +233,7 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 				directionToBoidY[phaseThree] = directionToBoidY[i];
 				directionToBoidZ[phaseThree] = directionToBoidZ[i];
 
-				distanceToBoid[phaseThree] = distanceToBoid[i];
+				distanceToBoid[phaseThree] = distanceToBoid[i]; 
 
 				relevantIndices[phaseThree] = relevantIndices[i];
 
