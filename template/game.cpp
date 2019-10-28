@@ -184,6 +184,15 @@ void DrawGUI()
 // -----------------------------------------------------------
 void Game::Init()
 {
+	const float aData[1]{1.0f};
+	__m128 a = _mm_load1_ps( aData );
+	const float bData[4] { 0.0f, 1.0f, 2.0f, 3.0f };
+	__m128 b = _mm_load_ps( bData );
+
+	__m128 c = _mm_cmpeq_ps( a, b );
+
+
+
 	scenario = new ScenarioCircle();
 	scenario->Init( COUNT );
 }

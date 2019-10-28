@@ -111,11 +111,11 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	// Prepare the structures
 
 	// represents the relevant data to work with.
-	float directionToBoidX[NUMBER_OF_ELEMENTS];
-	float directionToBoidY[NUMBER_OF_ELEMENTS];
-	float directionToBoidZ[NUMBER_OF_ELEMENTS];
-	float distanceToBoid[NUMBER_OF_ELEMENTS];
-	float anglesToBoid[NUMBER_OF_ELEMENTS];
+	__declspec( align( 64 ) ) float directionToBoidX[NUMBER_OF_ELEMENTS];
+	__declspec( align( 64 ) ) float directionToBoidY[NUMBER_OF_ELEMENTS];
+	__declspec( align( 64 ) ) float directionToBoidZ[NUMBER_OF_ELEMENTS];
+	__declspec( align( 64 ) ) float distanceToBoid[NUMBER_OF_ELEMENTS];
+	__declspec( align( 64 ) ) float anglesToBoid[NUMBER_OF_ELEMENTS];
 
 	// represents the relevant indices within a bucket
 	int relevantIndices[NUMBER_OF_ELEMENTS];

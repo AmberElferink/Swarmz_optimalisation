@@ -5,13 +5,13 @@ class Bucket
   public:
 
 	// represents the information the bucket can store.
-	float* posX;
-	float* posY;
-	float* posZ;
-	float* velX;
-	float* velY;
-	float* velZ;
-	int* indx;
+	__declspec( align( 64 ) ) float *posX;
+	__declspec( align( 64 ) ) float *posY;
+	__declspec( align( 64 ) ) float *posZ;
+	__declspec( align( 64 ) ) float *velX;
+	__declspec( align( 64 ) ) float *velY;
+	__declspec( align( 64 ) ) float *velZ;
+	__declspec( align( 64 ) ) int *indx;
 
 	// represents the maximum number of
 	// boids that this bucket can support.
