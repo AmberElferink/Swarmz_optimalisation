@@ -108,6 +108,19 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 	float bVelocityNegNormZ = bVelocityNegZ * bVelocityLengthRecpr;
 
 	// --------------------------------------------------------------------------------
+	// Prepare the structures
+
+	// represents the relevant data to work with.
+	float directionToBoidX[NUMBER_OF_ELEMENTS];
+	float directionToBoidY[NUMBER_OF_ELEMENTS];
+	float directionToBoidZ[NUMBER_OF_ELEMENTS];
+	float distanceToBoid[NUMBER_OF_ELEMENTS];
+	float anglesToBoid[NUMBER_OF_ELEMENTS];
+
+	// represents the relevant indices within a bucket
+	int relevantIndices[NUMBER_OF_ELEMENTS];
+
+	// --------------------------------------------------------------------------------
 	// Perform the computations
 
 	// retrieve the cell
@@ -117,63 +130,138 @@ void Grid::QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius
 		// retrieve the bucket
 		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
 
-		// check if there are any boids in the bucket
-		for ( int i = 0; i < bucket->count; i++ )
+		int phaseOne = bucket->count;
+
+		// phase 1:
+		//  - compute all the distances
+		//  - store the relevant indices
+
+		for ( int i = 0; i < phaseOne; i++ )
 		{
-			if ( s.index != bucket->indx[i] )
+			directionToBoidX[i] = bucket->posX[i] - b.Position.X;
+			directionToBoidY[i] = bucket->posY[i] - b.Position.Y;
+			directionToBoidZ[i] = bucket->posZ[i] - b.Position.Z;
+
+			distanceToBoid[i] = sqrtf(
+				directionToBoidX[i] * directionToBoidX[i] +
+				directionToBoidY[i] * directionToBoidY[i] +
+				directionToBoidZ[i] * directionToBoidZ[i] );
+
+			relevantIndices[i] = i;
+		}
+
+		// check for phase 2:
+		//  - distance too small check
+		//		(if true, change the SumVectors directly with the random direction)
+		//  - distance too large check
+		//  - id check
+
+		int phaseTwo = 0;
+		for ( int i = 0; i < phaseOne; i++ )
+		{
+			if ( s.index == bucket->indx[i] )
+				continue;
+
+			if ( distanceToBoid[i] > PerceptionRadius )
+				continue;
+
+			if ( distanceToBoid[i] < epsilon )
 			{
-				//compute distance between b and a boid in the gridcell
-				float distanceVecX = bucket->posX[i] - b.Position.X;
-				float distanceVecY = bucket->posY[i] - b.Position.Y;
-				float distanceVecZ = bucket->posZ[i] - b.Position.Z;
+				// put a random factor on SumVectors - two boids
+				// that are not the same are on top of one
+				// another!
 
-				float distance = FloatVCalc::Length( distanceVecX, distanceVecY, distanceVecZ );
+				// (the following line is _old_)
+				// separationSum += Vec3::GetRandomUniform( eng ) * 1000;
 
-				if ( distance < 0.001f )
-				{
-					// todo
-					//separationSum += Vec3::GetRandomUniform( eng ) * 1000;
-					return;
-				}
-
-				// check if the distance is nearby enough
-				if ( distance <= PerceptionRadius )
-				{
-
-					float blindAngle = 0;
-					if ( bVelocityLength > epsilon && distance > epsilon )
-					{
-						//Vec3 distanceVecNorm = distanceVec / distance;
-						float recd = 1.0f / distance;
-						float distanceVecNormX = distanceVecX * recd;
-						float distanceVecNormY = distanceVecY * recd;
-						float distanceVecNormZ = distanceVecZ * recd;
-
-						blindAngle = FloatVCalc::AngleToNorm( bVelocityNegNormX, bVelocityNegNormY, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
-					}
-					// check if we can 'see it'
-					if ( BlindspotAngleDeg <= blindAngle || bVelocityLength <= epsilon )
-					{
-						//calculate the sumVecs based on this neighbour
-						float separationFactor = SWARMZ_TransformDistance( distance, SeparationType );
-						//separationSum += closeBoid.direction.Negative() * separationFactor;
-						s.separationSumX += ( -distanceVecX ) * separationFactor;
-						s.separationSumY += ( -distanceVecY ) * separationFactor;
-						s.separationSumZ += ( -distanceVecZ ) * separationFactor;
-
-						//headingSum += closeBoid.boid.Velocity;
-						s.headingSumX += bucket->velX[i];
-						s.headingSumY += bucket->velY[i];
-						s.headingSumZ += bucket->velZ[i];
-
-						//positionSum += closeBoid.boid.Position;
-						s.positionSumX += bucket->posX[i];
-						s.positionSumY += bucket->posY[i];
-						s.positionSumZ += bucket->posZ[i];
-						s.count++;
-					}
-				}
+				continue;
 			}
+
+			// move the data, same cache line
+			directionToBoidX[phaseTwo] = directionToBoidX[i];
+			directionToBoidY[phaseTwo] = directionToBoidY[i];
+			directionToBoidZ[phaseTwo] = directionToBoidZ[i];
+
+			distanceToBoid[phaseTwo] = distanceToBoid[i];
+
+			relevantIndices[phaseTwo] = relevantIndices[i];
+
+			phaseTwo++;
+		}
+
+		// phase 2: compute all angles
+		//  - skip this phase if velocity is smaller than epsilon
+
+		// check for phase 3:
+		//  - skip this check if velocity is smaller than epsilon
+		//  - angle too large check
+
+		int phaseThree = 0;
+		if ( bVelocityLength < epsilon )
+		{
+			// we're standing still, we can safely look
+			// around without bumping our head into
+			// some window
+
+			phaseThree = phaseTwo;
+		}
+		else
+		{
+			// we're moving, find out which boids
+			// we can see without moving our
+			// head too much
+
+			for ( int i = 0; i < phaseTwo; i++ )
+			{
+				// compute the angles
+				float recd = 1.0f / distanceToBoid[i];
+				float distanceVecNormX = directionToBoidX[i] * recd;
+				float distanceVecNormY = directionToBoidY[i] * recd;
+				float distanceVecNormZ = directionToBoidZ[i] * recd;
+
+				anglesToBoid[i] = FloatVCalc::AngleToNorm( bVelocityNegNormX, bVelocityNegNormY, bVelocityNegNormZ, distanceVecNormX, distanceVecNormY, distanceVecNormZ );
+			}
+
+			for ( int i = 0; i < phaseTwo; i++ )
+			{
+				// if it's behind us, continue!
+				if ( BlindspotAngleDeg > anglesToBoid[i] )
+					continue;
+
+				// move the data, same cache line
+				directionToBoidX[phaseThree] = directionToBoidX[i];
+				directionToBoidY[phaseThree] = directionToBoidY[i];
+				directionToBoidZ[phaseThree] = directionToBoidZ[i];
+
+				distanceToBoid[phaseThree] = distanceToBoid[i];
+
+				relevantIndices[phaseThree] = relevantIndices[i];
+
+				phaseThree++;
+			}
+		}
+
+		// phase 3: update the SumVectors values with the remaining values
+
+		s.count += phaseThree;
+		for (int i = 0; i < phaseThree; i++)
+		{
+			//calculate the sumVecs based on this neighbour
+			float separationFactor = SWARMZ_TransformDistance( distanceToBoid[i], SeparationType );
+			//separationSum += closeBoid.direction.Negative() * separationFactor;
+			s.separationSumX += ( -directionToBoidX[i] ) * separationFactor;
+			s.separationSumY += ( -directionToBoidY[i] ) * separationFactor;
+			s.separationSumZ += ( -directionToBoidZ[i] ) * separationFactor;
+
+			//headingSum += closeBoid.boid.Velocity;
+			s.headingSumX += bucket->velX[relevantIndices[i]];
+			s.headingSumY += bucket->velY[relevantIndices[i]];
+			s.headingSumZ += bucket->velZ[relevantIndices[i]];
+
+			//positionSum += closeBoid.boid.Position;
+			s.positionSumX += bucket->posX[relevantIndices[i]];
+			s.positionSumY += bucket->posY[relevantIndices[i]];
+			s.positionSumZ += bucket->posZ[relevantIndices[i]];
 		}
 	}
 }
