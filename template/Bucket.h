@@ -31,7 +31,7 @@ class Bucket
 	};
 	__declspec( align( 64 ) ) union {
 		int *indx;
-		__m256 *indx4;
+		__m256i *indx4;
 	};
 
 	// represents the maximum number of
