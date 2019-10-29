@@ -156,6 +156,6 @@ void ScenarioRandom2::Init( int count )
 		boids.emplace_back( boid );
 	}
 
-	targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );
-	swarm->SteeringWeight = 0.001f;
+	//targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );
+	//swarm->SteeringWeight = 0.001f;
 }

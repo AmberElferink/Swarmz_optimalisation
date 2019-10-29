@@ -294,9 +294,9 @@ void Grid::QueryGrid(
 			bucketPositionZ4[i] = bucket->posZ4[i];
 
 			// compute the directions
-			directionToBoidX4[i] = _mm256_sub_ps( bucket->posX4[i], bPositionX4 );
-			directionToBoidY4[i] = _mm256_sub_ps( bucket->posY4[i], bPositionY4 );
-			directionToBoidZ4[i] = _mm256_sub_ps( bucket->posZ4[i], bPositionZ4 );
+			directionToBoidX4[i] = _mm256_sub_ps( bucketPositionX4[i], bPositionX4 );
+			directionToBoidY4[i] = _mm256_sub_ps( bucketPositionY4[i], bPositionY4 );
+			directionToBoidZ4[i] = _mm256_sub_ps( bucketPositionZ4[i], bPositionZ4 );
 
 			// compute the distance
 			distanceToBoid4[i] = _mm256_sqrt_ps(
