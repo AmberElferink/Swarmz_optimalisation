@@ -137,3 +137,25 @@ void ScenarioCircle::Init( int count )
 	targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );
 	swarm->SteeringWeight = 0.02f;
 }
+
+void ScenarioRandom2::Init( int count )
+{
+	for ( int j = 0; j < count; j++ )
+	{
+		Vec3 pos = Vec3(
+			SPAWN_ORIGIN_X + ( RandomFloat() - 0.5f ) * ( SPAWN_WIDTH ),
+			SPAWN_ORIGIN_Y + ( RandomFloat() - 0.5f ) * ( SPAWN_HEIGHT ),
+			0.0f );
+
+		Vec3 acc = Vec3(
+			( RandomFloat() - 0.5f ) * 2,
+			( RandomFloat() - 0.5f ) * 2,
+			0.0f );
+
+		Boid boid = Boid( pos, acc );
+		boids.emplace_back( boid );
+	}
+
+	targets.push_back( Vec3( SPAWN_ORIGIN_X, SPAWN_ORIGIN_Y, 0 ) );
+	swarm->SteeringWeight = 0.0001f;
+}

@@ -530,6 +530,8 @@ class Swarm
 		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
 		getSumVectors( b, s, SeparationType );
 
+		b.numberOfNearbyBoids = s.count;
+
 		//now the forces are calculated, accelerate the boids
 		accelerateByForce( b, s );
 	}

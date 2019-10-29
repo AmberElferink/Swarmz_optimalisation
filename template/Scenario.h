@@ -71,6 +71,19 @@ class ScenarioRandom : public Scenario
 	void Init( int count );
 };
 
+class ScenarioRandom2 : public Scenario
+{
+  private:
+	// represents the box in which boids can spawn.
+	const int SPAWN_WIDTH = 800;
+	const int SPAWN_HEIGHT = 800;
+	const int SPAWN_ORIGIN_X = 0;
+	const int SPAWN_ORIGIN_Y = 0;
+
+  public:
+	void Init( int count );
+};
+
 class ScenarioCircle : public Scenario
 {
   private:

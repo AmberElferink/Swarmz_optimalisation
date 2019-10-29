@@ -2,7 +2,7 @@
 using namespace sw;
 
 // represents the number of boids.
-const int COUNT = 5000;
+const int COUNT = 15000;
 
 Scenario *scenario;
 
@@ -208,6 +208,13 @@ void Tmpl8::Game::SwitchScenario( SDL_Scancode key )
 	case SDL_SCANCODE_2:
 		scenario->~Scenario();
 		scenario = new ScenarioCircle();
+		scenario->Init( COUNT );
+		break;
+
+			// key 2 = circle
+	case SDL_SCANCODE_3:
+		scenario->~Scenario();
+		scenario = new ScenarioRandom2();
 		scenario->Init( COUNT );
 		break;
 	}
