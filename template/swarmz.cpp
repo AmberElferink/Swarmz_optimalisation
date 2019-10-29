@@ -2,6 +2,25 @@
 #include "precomp.h"
 using namespace sw;
 
+//https://stackoverflow.com/questions/46974513/code-for-acos-with-avx256
+__m256 acos( __m256 x )
+{
+	__m256 xp = _mm256_and_ps( x, _mm256_castsi256_ps( _mm256_set1_epi32( 0x7FFFFFFF ) ) );
+	// main shape
+	__m256 one = _mm256_set1_ps( 1.0 );
+	__m256 t = _mm256_sqrt_ps( _mm256_sub_ps( one, xp ) );
+	// polynomial correction factor based on xp
+	__m256 c3 = _mm256_set1_ps( -0.02007522 );
+	__m256 c2 = _mm256_fmadd_ps( xp, c3, _mm256_set1_ps( 0.07590315 ) );
+	__m256 c1 = _mm256_fmadd_ps( xp, c2, _mm256_set1_ps( -0.2126757 ) );
+	__m256 c0 = _mm256_fmadd_ps( xp, c1, _mm256_set1_ps( 1.5707963267948966 ) );
+	// positive result
+	__m256 p = _mm256_mul_ps( t, c0 );
+	// correct for negative x
+	__m256 n = _mm256_sub_ps( _mm256_set1_ps( 3.14159265359 ), p );
+	return _mm256_blendv_ps( p, n, x );
+}
+
 Grid::Grid( int numberOfBuckets, int sizeOfBuckets, int nx, int ny, int nz )
 {
 	// receive 'dem dimensions.
@@ -395,7 +414,7 @@ void Grid::QueryGrid(
 					_mm256_mul_ps( bVelocityNegNormZ4, directionToBoidNormZ4 ) );
 
 				// min / max
-				anglesToBoid4[i] = _mm256_mul_ps( toRadian4, _mm256_acos_ps( dotProduct4 ) );
+				anglesToBoid4[i] = _mm256_mul_ps( toRadian4, acos( dotProduct4 ) );
 			}
 
 			for ( int i = 0; i < phaseTwo; i++ )
