@@ -564,6 +564,8 @@ class Swarm
 	// With the accumulated force vectors, accelerate the boid
 	void accelerateByForce( Boid &b, const SumVectors &s )
 	{
+		b.numberOfNearbyBoids = s.count;
+
 		//Vec3 steeringTarget = b.Position;
 		float steeringTargetX = b.Position.X;
 		float steeringTargetY = b.Position.Y;

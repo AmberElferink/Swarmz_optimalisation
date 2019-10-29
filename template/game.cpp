@@ -21,9 +21,9 @@ void GenerateLookupTable()
 {
 	float acos[256];
 	//input of acos is between -1 and 1.
-	for (int i = 0; i < 256; i++) //this is dividing the cirlce in 256 pieces instead of 360. It's faster since it's a power of two
+	for ( int i = 0; i < 256; i++ ) //this is dividing the cirlce in 256 pieces instead of 360. It's faster since it's a power of two
 	{
-		acos[i] = std::acos( ( 2.0f / 256.0f ) * (float) i - 1 );
+		acos[i] = std::acos( ( 2.0f / 256.0f ) * (float)i - 1 );
 		printf( "%f, ", acos[i] );
 	}
 	int y = 0;
@@ -170,8 +170,6 @@ void DrawGUI()
 		{
 			ImGui::Text( "Todo" );
 
-
-
 			ImGui::EndTabItem();
 		}
 
@@ -184,6 +182,16 @@ void DrawGUI()
 // -----------------------------------------------------------
 void Game::Init()
 {
+	union {
+		float a[8];
+		__m256 a4 = _mm256_set1_ps( 1.0f );
+	};
+
+	__m256 b = _mm256_set1_ps( 0.0f );
+	__m256 d = _mm256_div_ps( a4, b );
+	__m256 c = _mm256_blendv_ps( a4, b,
+		_mm256_cmp_ps( d, _mm256_setzero_ps(), _CMP_EQ_OQ ) );
+
 	scenario = new ScenarioCircle();
 	scenario->Init( COUNT );
 }
