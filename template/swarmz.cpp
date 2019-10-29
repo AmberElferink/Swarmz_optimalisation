@@ -151,6 +151,8 @@ void Grid::QueryGrid(
 	__m256 bVelocityNegNormY4 = _mm256_set1_ps( bVelocityNegNormY );
 	__m256 bVelocityNegNormZ4 = _mm256_set1_ps( bVelocityNegNormZ );
 
+	__m256i bIndex4 = _mm256_set1_epi32( s.index );
+
 #pragma endregion
 
 	//---------------------------------------------------------------------
@@ -281,6 +283,11 @@ void Grid::QueryGrid(
 		__m256 bucketVelocityZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 
+	__declspec( align( 64 ) ) union {
+		int mask[ELEMENTS_IN_BUCKET];
+		__m256i mask4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+
 #pragma endregion
 
 	// --------------------------------------------------------------------------------
@@ -289,12 +296,26 @@ void Grid::QueryGrid(
 	// retrieve the cell
 	int index = CalculateGridCellIndex( ix, iy, iz );
 	const GridCell *gridCell = cells[index];
-	for ( int bi = 0; bi < gridCell->numberOfBuckets; bi++ )
+
+	for ( int bi = 0, bl = gridCell->numberOfBuckets; bi < bl; bi++ )
 	{
 		// retrieve the bucket
 		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
-
 		int phaseOne = bucket->count;
+
+		if ( bi + 1 < bl )
+		{
+			const Bucket *bucketPrefetch = bp->GetBucket( gridCell->bpi[bi + 1] );
+			PREFETCH( bucketPrefetch->velX4 );
+			PREFETCH( bucketPrefetch->velY4 );
+			PREFETCH( bucketPrefetch->velZ4 );
+			PREFETCH( bucketPrefetch->posX4 );
+			PREFETCH( bucketPrefetch->posY4 );
+			PREFETCH( bucketPrefetch->posZ4 );
+			PREFETCH( &bPositionX4 );
+			PREFETCH( &bPositionY4 );
+			PREFETCH( &bPositionZ4 );
+		}
 
 		// phase 1:
 		//  - compute all the distances
@@ -308,35 +329,19 @@ void Grid::QueryGrid(
 		memcpy( bucketPositionZ4, bucket->posZ4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
 
 		int phaseOneSimd = ( phaseOne + SIMDSIZE - 1 ) / SIMDSIZE;
-		switch ( phaseOneSimd )
+		for ( int i = 0; i < phaseOneSimd; i++ )
 		{
-		case 2:
-			// compute the directions
-			directionToBoidX4[1] = _mm256_sub_ps( bucketPositionX4[1], bPositionX4 );
-			directionToBoidY4[1] = _mm256_sub_ps( bucketPositionY4[1], bPositionY4 );
-			directionToBoidZ4[1] = _mm256_sub_ps( bucketPositionZ4[1], bPositionZ4 );
+			directionToBoidX4[i] = _mm256_sub_ps( bucketPositionX4[i], bPositionX4 );
+			directionToBoidY4[i] = _mm256_sub_ps( bucketPositionY4[i], bPositionY4 );
+			directionToBoidZ4[i] = _mm256_sub_ps( bucketPositionZ4[i], bPositionZ4 );
 
 			// compute the distance
-			distanceToBoid4[1] = _mm256_sqrt_ps(
+			distanceToBoid4[i] = _mm256_sqrt_ps(
 				_mm256_add_ps(
 					_mm256_add_ps(
-						_mm256_mul_ps( directionToBoidX4[1], directionToBoidX4[1] ),
-						_mm256_mul_ps( directionToBoidY4[1], directionToBoidY4[1] ) ),
-					_mm256_mul_ps( directionToBoidZ4[1], directionToBoidZ4[1] ) ) );
-
-		case 1:
-			// compute the directions
-			directionToBoidX4[0] = _mm256_sub_ps( bucketPositionX4[0], bPositionX4 );
-			directionToBoidY4[0] = _mm256_sub_ps( bucketPositionY4[0], bPositionY4 );
-			directionToBoidZ4[0] = _mm256_sub_ps( bucketPositionZ4[0], bPositionZ4 );
-
-			// compute the distance
-			distanceToBoid4[0] = _mm256_sqrt_ps(
-				_mm256_add_ps(
-					_mm256_add_ps(
-						_mm256_mul_ps( directionToBoidX4[0], directionToBoidX4[0] ),
-						_mm256_mul_ps( directionToBoidY4[0], directionToBoidY4[0] ) ),
-					_mm256_mul_ps( directionToBoidZ4[0], directionToBoidZ4[0] ) ) );
+						_mm256_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
+						_mm256_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
+					_mm256_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
 		}
 
 		// check for phase 2:
