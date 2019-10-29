@@ -218,6 +218,12 @@ void Tmpl8::Game::SwitchScenario( SDL_Scancode key )
 		scenario = new ScenarioCircle();
 		scenario->Init( COUNT );
 		break;
+		// key 2 = circle
+	case SDL_SCANCODE_3:
+		scenario->~Scenario();
+		scenario = new ScenarioRandom2();
+		scenario->Init( COUNT );
+		break;
 	}
 }
 
