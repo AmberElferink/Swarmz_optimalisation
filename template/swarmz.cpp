@@ -281,30 +281,43 @@ void Grid::QueryGrid(
 		//  - compute all the distances
 		//  - store the relevant indices
 
+		memcpy( bucketVelocityX4, bucket->velX4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+		memcpy( bucketVelocityY4, bucket->velY4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+		memcpy( bucketVelocityZ4, bucket->velZ4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+		memcpy( bucketPositionX4, bucket->posX4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+		memcpy( bucketPositionY4, bucket->posY4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+		memcpy( bucketPositionZ4, bucket->posZ4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
+
 		int phaseOneSimd = ( phaseOne + SIMDSIZE - 1 ) / SIMDSIZE;
-		for ( int i = 0; i < phaseOneSimd; i++ )
+		switch ( phaseOneSimd )
 		{
-			// transfer data
-			bucketVelocityX4[i] = bucket->velX4[i];
-			bucketVelocityY4[i] = bucket->velY4[i];
-			bucketVelocityZ4[i] = bucket->velZ4[i];
-
-			bucketPositionX4[i] = bucket->posX4[i];
-			bucketPositionY4[i] = bucket->posY4[i];
-			bucketPositionZ4[i] = bucket->posZ4[i];
-
+		case 2:
 			// compute the directions
-			directionToBoidX4[i] = _mm256_sub_ps( bucketPositionX4[i], bPositionX4 );
-			directionToBoidY4[i] = _mm256_sub_ps( bucketPositionY4[i], bPositionY4 );
-			directionToBoidZ4[i] = _mm256_sub_ps( bucketPositionZ4[i], bPositionZ4 );
+			directionToBoidX4[1] = _mm256_sub_ps( bucketPositionX4[1], bPositionX4 );
+			directionToBoidY4[1] = _mm256_sub_ps( bucketPositionY4[1], bPositionY4 );
+			directionToBoidZ4[1] = _mm256_sub_ps( bucketPositionZ4[1], bPositionZ4 );
 
 			// compute the distance
-			distanceToBoid4[i] = _mm256_sqrt_ps(
+			distanceToBoid4[1] = _mm256_sqrt_ps(
 				_mm256_add_ps(
 					_mm256_add_ps(
-						_mm256_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
-						_mm256_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
-					_mm256_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
+						_mm256_mul_ps( directionToBoidX4[1], directionToBoidX4[1] ),
+						_mm256_mul_ps( directionToBoidY4[1], directionToBoidY4[1] ) ),
+					_mm256_mul_ps( directionToBoidZ4[1], directionToBoidZ4[1] ) ) );
+
+		case 1:
+			// compute the directions
+			directionToBoidX4[0] = _mm256_sub_ps( bucketPositionX4[0], bPositionX4 );
+			directionToBoidY4[0] = _mm256_sub_ps( bucketPositionY4[0], bPositionY4 );
+			directionToBoidZ4[0] = _mm256_sub_ps( bucketPositionZ4[0], bPositionZ4 );
+
+			// compute the distance
+			distanceToBoid4[0] = _mm256_sqrt_ps(
+				_mm256_add_ps(
+					_mm256_add_ps(
+						_mm256_mul_ps( directionToBoidX4[0], directionToBoidX4[0] ),
+						_mm256_mul_ps( directionToBoidY4[0], directionToBoidY4[0] ) ),
+					_mm256_mul_ps( directionToBoidZ4[0], directionToBoidZ4[0] ) ) );
 		}
 
 		// check for phase 2:
@@ -515,7 +528,7 @@ void Grid::QueryGrid(
 
 	// todo: a lot of times 0 is added?
 	// sum up all the results horizontally ( :| )
-	for ( int i = 0, l = min(SIMDSIZE, s.count); i < l; i++ )
+	for ( int i = 0, l = min( SIMDSIZE, s.count ); i < l; i++ )
 	{
 		s.separationSumX += separationSumX[i];
 		s.separationSumY += separationSumY[i];
