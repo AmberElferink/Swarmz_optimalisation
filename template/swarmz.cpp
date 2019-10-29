@@ -507,9 +507,9 @@ void Grid::QueryGrid(
 			headingSumY4 = _mm256_add_ps( headingSumY4, bucketVelocityY4[i] );
 			headingSumZ4 = _mm256_add_ps( headingSumZ4, bucketVelocityZ4[i] );
 
-			positionSumX4 = _mm256_add_ps( headingSumX4, bucketPositionX4[i] );
-			positionSumY4 = _mm256_add_ps( headingSumY4, bucketPositionY4[i] );
-			positionSumZ4 = _mm256_add_ps( headingSumZ4, bucketPositionZ4[i] );
+			positionSumX4 = _mm256_add_ps( positionSumX4, bucketPositionX4[i] );
+			positionSumY4 = _mm256_add_ps( positionSumY4, bucketPositionY4[i] );
+			positionSumZ4 = _mm256_add_ps( positionSumZ4, bucketPositionZ4[i] );
 		}
 	}
 
