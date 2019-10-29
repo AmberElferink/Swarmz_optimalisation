@@ -34,8 +34,8 @@
 #include <vector>
 
 // multithreading libraries
-#include <mutex>
 #include <atomic>
+#include <mutex>
 #include <thread>
 
 // threading planning
@@ -502,12 +502,16 @@ class Swarm
 
 		grid->ConstructGrid( ( *boids ), PerceptionRadius );
 
-		int index = 0;
-		for ( auto &b : *boids )
-		{
+		//int index = 0;
+		int size = boids->size();
 
-			updateBoid( b, index );
-			index++;
+#ifdef MULTITHREADING
+#pragma omp parallel for
+#endif
+		for ( int i = 0; i < size; i++ ) // auto &b : *boids )
+		{
+			Boid &b = ( *boids )[i];
+			updateBoid( b, i );
 			// printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f\n", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
 			//if something horrible goes wrong, let the developer know
 			// cheers

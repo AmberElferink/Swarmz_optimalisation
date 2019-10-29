@@ -9,6 +9,7 @@
 
 #define DEBUG_PERFORMANCE
 
+
 #define SCRWIDTH 1440
 #define SCRHEIGHT 810
 
@@ -16,7 +17,10 @@
 #define NUMBER_OF_BUCKETS ( GRIDSIZE * GRIDSIZE * GRIDSIZE )
 #define ELEMENTS_IN_BUCKET 16
 
+
+#define MULTITHREADING
 #define SIMDSIZE 8
+
 
 // #define FULLSCREEN
 // #define ADVANCEDGL	// faster if your system supports it
