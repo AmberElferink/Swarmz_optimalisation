@@ -34,86 +34,112 @@
 #include <vector>
 
 // multithreading libraries
-#include <atomic>
-#include <mutex>
+//#include <atomic>
+//#include <mutex>
+//#include <thread>
+
+#ifdef MULTITHREADING
+#include <condition_variable>
+#include <functional>
+#include <iostream>
+#include <queue>
 #include <thread>
+#include <vector>
 
-// threading planning
-
-// represents the number of jobs. Could, for example,
-// be the number of boids. Or the number of boids
-// over ten.
-atomic<int> jobs;
-enum ThreadWork
+class ThreadPool
 {
-	UpdateBoids = 1,
-	StoreBoids = 2,
-	ComputeBoundingBox = 4
-};
-
-ThreadWork type_of_work;
-
-// send additional parameters through
-// and store them accordingly. All data
-// send through must be read only.
-void ThreadWorker( int id )
-{
-	// construct data that every thread will need
-	//  - some rng
-
-	while ( true )
+  public:
+	using Task = std::function<void()>;
+	explicit ThreadPool( std::size_t numThreads )
 	{
-
-		// wait for the main thread to send a signal
-		// ...? Conditional_variable?
-		// C#: signalToThread.WaitOne(-1);
-		while ( true )
+		start( numThreads );
+	}
+	~ThreadPool()
+	{
+		stop();
+	}
+	void enqueue( Task task )
+	{
 		{
+			std::unique_lock<std::mutex> lock( mEventMutex );
+			mTasks.emplace( std::move( task ) );
+		}
+		mEventVar.notify_one();
+	}
+	bool isDone()
+	{
+		if ( busyCounter != 0 )
+			return false;
+	}
 
-			// find our job number
-			// C#: int job = Interlocked.Decrement(ref jobs);
+  private:
+	std::condition_variable mEventVar;
+	std::mutex mEventMutex;
 
-			// check if we're done, if so: send a signal to
-			// the main thread. Again, conditional_variable?
-			// C#: if ( job < 0 ) { signalToMain[threadNumber].Set(); break; }
+	int busyCounter = 0;
+	std::mutex busyThreadsMutex;
 
-			// depending on the actual work, do something with it
-			switch ( type_of_work )
-			{
+	std::vector<std::thread> allThreads;
+	bool mStopping = false;
 
-			case UpdateBoids:
-				// do work
-				break;
+	std::queue<Task> mTasks;
 
-			case StoreBoids:
-				// do work
-				break;
+	void start( std::size_t numThreads )
+	{
+		for ( int i = 0; i < numThreads; ++i )
+		{
+			//[=] kopieert alles in de huidige scope alsof je een normale methode zou aanroepen
+			//[&] referenced alles in huidige scope alsof je methode zou aanroepen met reference
+			//ipv = of & kun je ook specifieke variabelen erin zetten die je wil meegeven zoals je normaal zou doen
+			// dat laatste kan alleen niet voor variabelen van de class zelf. Daarvoor pass je this
+			allThreads.emplace_back( [=] {
+				while ( true )
+				{
+					Task task;
 
-			case ComputeBoundingBox:
-				// do work
-				break;
-			}
+					{
+						std::unique_lock<std::mutex> lock( mEventMutex );
+
+						mEventVar.wait( lock, [=] { return mStopping || !mTasks.empty(); } );
+
+						if ( mStopping && mTasks.empty() )
+							break;
+
+						task = std::move( mTasks.front() );
+						mTasks.pop();
+					}
+					{
+						std::unique_lock<std::mutex> lock( busyThreadsMutex );
+						busyCounter++;
+						//unlock the lock zodat andere threads ook kunnen starten met de scope, en start task
+					}
+					task();
+					{
+						std::unique_lock<std::mutex> lock( busyThreadsMutex );
+						busyCounter--;
+						//unlock the lock zodat andere threads ook kunnen starten met de scope, en start task
+					}
+				}
+			} );
 		}
 	}
-}
+	void stop() noexcept
+	{
+		{
+			//zodra je out of scope van de loop gaat, wordt de lock opgeheven.
+			std::unique_lock<std::mutex> lock( mEventMutex );
+			mStopping = true;
+		}
+		mEventVar.notify_all();
 
-// todo: this should not be generalized
-void StartAndWaitThreads()
-{
-	// Compute the number of jobs, for whatever job
-	// we wish to do
-	// C#: jobs = ( ( width / squareSize ) + 1 ) * ( ( height / squareSize ) + 1 );
+		for ( auto &thread : allThreads )
+			thread.join();
+	}
+};
 
-	// reset the 'i am done' signals, then put the workers to work.
-	// C#: for ( int j = 0; j < processors; j++ ) signalToMain[j].Reset();
+#endif
 
-	// start the workers
-	// workers be like: vrrroooooooommM!!
-	// signalToThread.Set();
-
-	// wait for the workers to be done.
-	// C#: for ( int j = 0; j < processors; j++ ) signalToMain[j].WaitOne( -1 ); // main be like: zzzzzzzz....
-}
+// threading planning
 
 namespace sw
 {
@@ -531,8 +557,11 @@ class Swarm
 	float MaxAcceleration = 10.0f;
 	float MaxVelocity = 20.0f;
 
+	ThreadPool *pool;
+
 	explicit Swarm( std::vector<Boid> *entities ) : boids( entities )
 	{
+		pool = new ThreadPool( CORES );
 		// construct the grid
 		grid = new Grid( NUMBER_OF_BUCKETS, ELEMENTS_IN_BUCKET, GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
@@ -557,10 +586,39 @@ class Swarm
 
 		//int index = 0;
 		int size = boids->size();
-
 #ifdef MULTITHREADING
-#pragma omp parallel for
-#endif
+
+		int chunkSize = size / CORES;
+		int dChunkSize = size % CORES;
+		for ( int i = 0; i < CORES; i++ )
+		{
+			int start = i * chunkSize;
+			int end = start + chunkSize;
+			if ( i == CORES - 1 ) //correct for boids % core != 0
+				end = size;
+
+			pool->enqueue( [=] {
+				for ( int boidIndex = start; boidIndex < end; boidIndex++ ) // auto &b : *boids )
+				{
+					Boid &b = ( *boids )[boidIndex];
+					updateBoid( b, boidIndex );
+
+					// printf( "bpx: %f, bpy: %f, bpz: %f, bvx: %f, bvy: %f, bvz: %f\n, bax: %f, bay: %f, baz: %f\n", b.Position.X, b.Position.Y, b.Position.Z, b.Velocity.X, b.Velocity.Y, b.Velocity.Z, b.Acceleration.X, b.Acceleration.Y, b.Acceleration.Z );
+					//if something horrible goes wrong, let the developer know
+					// cheers
+					if ( isnan( b.Position.X ) || isnan( b.Position.Y ) || isnan( b.Position.Z ) || isnan( b.Acceleration.X ) || isnan( b.Acceleration.Y ) || isnan( b.Acceleration.Z ) )
+						throw( "boidPos is NaN" );
+					if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
+						throw( "boidPos is inf" );
+				}
+			} );
+		}
+		while ( !pool->isDone() )
+		{
+			//"join" the threads but keep them alive for the next job
+		}
+
+#else
 		for ( int i = 0; i < size; i++ ) // auto &b : *boids )
 		{
 			Boid &b = ( *boids )[i];
@@ -573,6 +631,7 @@ class Swarm
 			if ( isinf( b.Position.X ) || isinf( b.Position.Y ) || isinf( b.Position.Z ) || isinf( b.Acceleration.X ) || isinf( b.Acceleration.Y ) || isinf( b.Acceleration.Z ) )
 				throw( "boidPos is inf" );
 		}
+#endif
 	}
 
   private:

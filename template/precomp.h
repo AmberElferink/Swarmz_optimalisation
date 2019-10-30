@@ -17,7 +17,9 @@
 #define ELEMENTS_IN_BUCKET 64
 
 
-//#define MULTITHREADING
+#define MULTITHREADING
+#define CORES 4
+
 #define SIMDSIZE 8
 
 
