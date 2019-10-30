@@ -113,8 +113,23 @@ void Grid::QueryGrid(
 
 	float epsilon = 0.0001f;
 
+	// info about the _mm256_cmp_ps function
+	// https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmp_ps&expand=744
+	// https://stackoverflow.com/questions/16988199/how-to-choose-avx-compare-predicate-variants
+	// https://stackoverflow.com/questions/8627331/what-does-ordered-unordered-comparison-mean
+
 	// --------------------------------------------------------------------------------
 	// Loop hoisting
+
+	//---------------------------------------------------------------------
+	// Widening constants
+
+	__m256 PerceptionRadius4 = _mm256_set1_ps( PerceptionRadius );
+	__m256 BlindspotAngleDeg4 = _mm256_set1_ps( BlindspotAngleDeg );
+	__m256 toRadian4 = _mm256_set1_ps( toRadian );
+
+	__m256i bIndex4 = _mm256_set1_epi32( boidIndex );
+	__m256i ones = _mm256_set1_epi32( 0xffffffff );
 
 #pragma region Loop hoisting
 
@@ -132,9 +147,6 @@ void Grid::QueryGrid(
 	float bVelocityNegNormY = bVelocityNegY * bVelocityLengthRecpr;
 	float bVelocityNegNormZ = bVelocityNegZ * bVelocityLengthRecpr;
 
-	__m256 toRadian4 = _mm256_set1_ps( toRadian );
-	__m256 ones = _mm256_set1_ps( 1.0f );
-
 #pragma endregion
 
 	//---------------------------------------------------------------------
@@ -150,9 +162,6 @@ void Grid::QueryGrid(
 	__m256 bVelocityNegNormX4 = _mm256_set1_ps( bVelocityNegNormX );
 	__m256 bVelocityNegNormY4 = _mm256_set1_ps( bVelocityNegNormY );
 	__m256 bVelocityNegNormZ4 = _mm256_set1_ps( bVelocityNegNormZ );
-
-	__m256i bIndex4 = _mm256_set1_epi32( boidIndex );
-	__m256 PerceptionRadius4 = _mm256_set1_ps( PerceptionRadius );
 
 #pragma endregion
 
@@ -196,40 +205,24 @@ void Grid::QueryGrid(
 		__m256 anglesToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 
-	// represents the relevant data of the bucket to work with.
-	__declspec( align( 64 ) ) union {
-		float bucketPositionX[ELEMENTS_IN_BUCKET];
-		__m256 bucketPositionX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
-	__declspec( align( 64 ) ) union {
-		float bucketPositionY[ELEMENTS_IN_BUCKET];
-		__m256 bucketPositionY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
-	__declspec( align( 64 ) ) union {
-		float bucketPositionZ[ELEMENTS_IN_BUCKET];
-		__m256 bucketPositionZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
-	__declspec( align( 64 ) ) union {
-		float bucketVelocityX[ELEMENTS_IN_BUCKET];
-		__m256 bucketVelocityX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
-	__declspec( align( 64 ) ) union {
-		float bucketVelocityY[ELEMENTS_IN_BUCKET];
-		__m256 bucketVelocityY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
-	__declspec( align( 64 ) ) union {
-		float bucketVelocityZ[ELEMENTS_IN_BUCKET];
-		__m256 bucketVelocityZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
-	};
-
 	__declspec( align( 64 ) ) union {
 		int mask[ELEMENTS_IN_BUCKET];
-		__m256i mask4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+		__m256 mask4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+
+	__declspec( align( 64 ) ) union {
+		float tempA[ELEMENTS_IN_BUCKET];
+		__m256 tempA4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+
+	__declspec( align( 64 ) ) union {
+		float tempB[ELEMENTS_IN_BUCKET];
+		__m256 tempB4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+
+	__declspec( align( 64 ) ) union {
+		float tempC[ELEMENTS_IN_BUCKET];
+		__m256 tempC4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 
 #pragma endregion
@@ -245,7 +238,10 @@ void Grid::QueryGrid(
 	{
 		// retrieve the bucket
 		const Bucket *bucket = bp->GetBucket( gridCell->bpi[bi] );
-		int phaseOne = bucket->count;
+		const int iterations = ( bucket->count + SIMDSIZE - 1 ) / SIMDSIZE;
+
+		// --------------------------------------------------------------------------------
+		// Attempt to prefetch
 
 		if ( bi + 1 < bl )
 		{
@@ -261,246 +257,202 @@ void Grid::QueryGrid(
 			PREFETCH( &bPositionZ4 );
 		}
 
-		// phase 1:
-		//  - compute all the distances
-		//  - store the relevant indices
+		// --------------------------------------------------------------------------------
+		// Compute direction
+		// Compute (inverse) distance
 
-		memcpy( bucketVelocityX4, bucket->velX4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-		memcpy( bucketVelocityY4, bucket->velY4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-		memcpy( bucketVelocityZ4, bucket->velZ4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-		memcpy( bucketPositionX4, bucket->posX4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-		memcpy( bucketPositionY4, bucket->posY4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-		memcpy( bucketPositionZ4, bucket->posZ4, ELEMENTS_IN_BUCKET * ( sizeof( float ) ) );
-
-		int phaseOneSimd = ( phaseOne + SIMDSIZE - 1 ) / SIMDSIZE;
-		for ( int i = 0; i < phaseOneSimd; i++ )
+		for ( int i = 0; i < iterations; i++ )
 		{
-			directionToBoidX4[i] = _mm256_sub_ps( bucketPositionX4[i], bPositionX4 );
-			directionToBoidY4[i] = _mm256_sub_ps( bucketPositionY4[i], bPositionY4 );
-			directionToBoidZ4[i] = _mm256_sub_ps( bucketPositionZ4[i], bPositionZ4 );
+			directionToBoidX4[i] = _mm256_sub_ps( bucket->posX4[i], bPositionX4 );
+			directionToBoidY4[i] = _mm256_sub_ps( bucket->posY4[i], bPositionY4 );
+			directionToBoidZ4[i] = _mm256_sub_ps( bucket->posZ4[i], bPositionZ4 );
 		}
 
-		for ( int i = 0; i < phaseOneSimd; i++ )
+		for ( int i = 0; i < iterations; i++ )
 		{
 			// compute the distance
-			distanceToBoidInv4[i] = _mm256_rsqrt_ps(
+			distanceToBoid4[i] = _mm256_sqrt_ps(
 				_mm256_add_ps(
 					_mm256_add_ps(
 						_mm256_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
 						_mm256_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
 					_mm256_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
 
-			distanceToBoid4[i] = _mm256_rcp_ps( distanceToBoidInv4[i] );
+			distanceToBoidInv4[i] = _mm256_rcp_ps( distanceToBoid4[i] );
 		}
 
-		for ( int i = 0; i < phaseOneSimd; i++ )
-		{
-			__m256i dMask = _mm256_castps_si256( _mm256_cmp_ps( distanceToBoid4[i], PerceptionRadius4, _CMP_GT_OQ ) );
-			__m256i iMask = _mm256_cmpeq_epi32( bIndex4, bucket->indx4[i] );
+		// --------------------------------------------------------------------------------
+		// Compute index mask
+		// Compute distance mask
 
-			// compute the masks
-			mask4[i] = _mm256_or_si256( dMask, iMask );
+		for ( int i = 0; i < iterations; i++ )
+		{
+			// todo: inverse mask
+
+			// ((uint*)(mask4[0].m256_f32))[0]
+			mask4[i] = _mm256_castsi256_ps( 
+				// inverse
+				_mm256_xor_si256( 
+					_mm256_cmpeq_epi32( bIndex4, bucket->indx4[i] ), 
+					ones ) );
 		}
 
-		// check for phase 2:
-		//  - distance too small check
-		//		(if true, change the SumVectors directly with the random direction)
-		//  - distance too large check
-		//  - id check
-
-		int phaseTwo = 0;
-		for ( int i = 0; i < phaseOne; i++ )
+		for ( int i = 0; i < iterations; i++ )
 		{
-			if ( mask[i] )
-				continue;
+			mask4[i] =
+				_mm256_and_ps(
+					_mm256_cmp_ps( distanceToBoid4[i], PerceptionRadius4, _CMP_LT_OQ ),
+					mask4[i] );
+		}
 
-			if ( distanceToBoid[i] < epsilon )
+		// --------------------------------------------------------------------------------
+		// Compute the normalized direction
+		// Compute the dot products
+		// Compute the cosines
+		// Compute the angle
+		// Compute the mask for the angle
+
+		if ( bVelocityLength >= epsilon )
+		{
+			for ( int i = 0; i < iterations; i++ )
 			{
-				// todo
-				// put a random factor on SumVectors - two boids
-				// that are not the same are on top of one
-				// another!
-
-				// (the following line is _old_)
-				// separationSum += Vec3::GetRandomUniform( eng ) * 1000;
-
-				continue;
+				tempA4[i] = _mm256_mul_ps( directionToBoidX4[i], distanceToBoidInv4[i] );
+				tempB4[i] = _mm256_mul_ps( directionToBoidY4[i], distanceToBoidInv4[i] );
+				tempC4[i] = _mm256_mul_ps( directionToBoidZ4[i], distanceToBoidInv4[i] );
 			}
 
-			if ( phaseTwo != i )
+			for ( int i = 0; i < iterations; i++ )
 			{
-				// https://stackoverflow.com/questions/36932240/avx2-what-is-the-most-efficient-way-to-pack-left-based-on-a-mask
-				// move the data, same cache line
-				directionToBoidX[phaseTwo] = directionToBoidX[i];
-				directionToBoidY[phaseTwo] = directionToBoidY[i];
-				directionToBoidZ[phaseTwo] = directionToBoidZ[i];
-
-				distanceToBoid[phaseTwo] = distanceToBoid[i];
-
-				// transfer our local copy of the bucket contents
-				bucketVelocityX[phaseTwo] = bucketVelocityX[i];
-				bucketVelocityY[phaseTwo] = bucketVelocityY[i];
-				bucketVelocityZ[phaseTwo] = bucketVelocityZ[i];
-
-				bucketPositionX[phaseTwo] = bucketPositionX[i];
-				bucketPositionY[phaseTwo] = bucketPositionY[i];
-				bucketPositionZ[phaseTwo] = bucketPositionZ[i];
-			}
-			phaseTwo++;
-		}
-
-		// phase 2: compute all angles
-		//  - skip this phase if velocity is smaller than epsilon
-
-		// check for phase 3:
-		//  - skip this check if velocity is smaller than epsilon
-		//  - angle too large check
-
-		int phaseThree = 0;
-		if ( bVelocityLength < epsilon )
-		{
-			// we're standing still, we can safely look
-			// around without bumping our head into
-			// some window
-
-			phaseThree = phaseTwo;
-		}
-		else
-		{
-			// we're moving, find out which boids
-			// we can see without moving our
-			// head too much
-			int phaseTwoSimd = ( phaseTwo + SIMDSIZE - 1 ) / SIMDSIZE;
-			for ( int i = 0; i < phaseTwoSimd; i++ )
-			{
-				// compute the normalized direction
-				__m256 directionToBoidNormX4 = _mm256_mul_ps( directionToBoidX4[i], distanceToBoidInv4[i] );
-				__m256 directionToBoidNormY4 = _mm256_mul_ps( directionToBoidY4[i], distanceToBoidInv4[i] );
-				__m256 directionToBoidNormZ4 = _mm256_mul_ps( directionToBoidZ4[i], distanceToBoidInv4[i] );
-
-				// compute dotproduct
-				__m256 dotProduct4 = _mm256_add_ps(
-					_mm256_add_ps(
-						_mm256_mul_ps( bVelocityNegNormX4, directionToBoidNormX4 ),
-						_mm256_mul_ps( bVelocityNegNormY4, directionToBoidNormY4 ) ),
-					_mm256_mul_ps( bVelocityNegNormZ4, directionToBoidNormZ4 ) );
-
-				// min / max
-				anglesToBoid4[i] = _mm256_mul_ps( toRadian4, acos( dotProduct4 ) );
+				tempA4[i] = _mm256_mul_ps( tempA4[i], tempA4[i] );
+				tempB4[i] = _mm256_mul_ps( tempB4[i], tempB4[i] );
+				tempC4[i] = _mm256_mul_ps( tempC4[i], tempC4[i] );
 			}
 
-			for ( int i = 0; i < phaseTwo; i++ )
+			for ( int i = 0; i < iterations; i++ )
 			{
-				// if it's behind us, continue!
-				if ( BlindspotAngleDeg > anglesToBoid[i] )
-					continue;
+				tempA4[i] = _mm256_add_ps( tempA4[i], _mm256_add_ps( tempB4[i], tempC4[i] ) );
+				tempA4[i] = _mm256_min_ps( tempA4[i], _mm256_set1_ps( 1.0f ) );
+				tempA4[i] = _mm256_max_ps( tempA4[i], _mm256_set1_ps( -1.0f ) );
+			}
 
-				if ( phaseThree != i )
-				{
-					// move the data, same cache line
-					directionToBoidX[phaseThree] = directionToBoidX[i];
-					directionToBoidY[phaseThree] = directionToBoidY[i];
-					directionToBoidZ[phaseThree] = directionToBoidZ[i];
+			// prefetch the radians / perception radius
+			PREFETCH( &toRadian4 );
+			PREFETCH( &PerceptionRadius4 );
 
-					distanceToBoid[phaseThree] = distanceToBoid[i];
+			for ( int i = 0; i < iterations; i++ )
+			{
+				tempC4[i] = acos( tempA4[i] );
+			}
 
-					// transfer our local copy of the bucket contents
-					bucketVelocityX[phaseThree] = bucketVelocityX[i];
-					bucketVelocityY[phaseThree] = bucketVelocityY[i];
-					bucketVelocityZ[phaseThree] = bucketVelocityZ[i];
+			for ( int i = 0; i < iterations; i++ )
+			{
+				anglesToBoid4[i] = _mm256_mul_ps( toRadian4, tempC4[i] );
+			}
 
-					bucketPositionX[phaseThree] = bucketPositionX[i];
-					bucketPositionY[phaseThree] = bucketPositionY[i];
-					bucketPositionZ[phaseThree] = bucketPositionZ[i];
-				}
-
-				phaseThree++;
+			for ( int i = 0; i < iterations; i++ )
+			{
+				mask4[i] = _mm256_and_ps(
+					_mm256_cmp_ps( BlindspotAngleDeg4, anglesToBoid4[i], _CMP_GT_OQ ),
+					mask4[i] );
 			}
 		}
 
-		// phase 3:
-		// erase the few elements that will be loaded
-		// and processed by avx instructions, but should
-		// not be used. For example, say of the total of
-		// 16 boids only 13 are valid. Then we want to turn
+		// --------------------------------------------------------------------------------
+		// Compute the number of valid boids
+		// Compute the seperation factors
+		// Compute the resulting forces in a masked manner
 
-		// [d, d, d, d, d, d, d, d, d, d, d, d, d, d, d, d]
-		// into									  ----------
-		// [d, d, d, d, d, d, d, d, d, d, d, d, d, 0, 0, 0]
-		//										  ----------
-
-		// where d is some data. This is to ensure that the last
-		// feel elements can be safely loaded in with the vector
-		// instructions, but do not influence the result.
-
-		int elementsToErase = ( ( ELEMENTS_IN_BUCKET - phaseThree ) % SIMDSIZE ) * sizeof( float );
-		if ( elementsToErase )
+		int boids = 0;
+		for ( int i = 0; i < iterations; i++ )
 		{
-			memset( directionToBoidX + phaseThree, 0, elementsToErase );
-			memset( directionToBoidY + phaseThree, 0, elementsToErase );
-			memset( directionToBoidZ + phaseThree, 0, elementsToErase );
-			memset( bucketVelocityX + phaseThree, 0, elementsToErase );
-			memset( bucketVelocityY + phaseThree, 0, elementsToErase );
-			memset( bucketVelocityZ + phaseThree, 0, elementsToErase );
-			memset( distanceToBoid + phaseThree, 0, elementsToErase );
-			memset( bucketPositionX + phaseThree, 0, elementsToErase );
-			memset( bucketPositionY + phaseThree, 0, elementsToErase );
-			memset( bucketPositionZ + phaseThree, 0, elementsToErase );
+			for ( int j = 0; j < SIMDSIZE; j++ )
+			{
+				if ( mask[i] )
+					boids++;
+			}
+		}
+		s.count = boids;
+
+		switch ( SeparationType )
+		{
+		case DistanceType::LINEAR:
+			for ( int i = 0; i < iterations; i++ )
+			{ tempB4[i] = distanceToBoid4[i]; }
+			break;
+
+		case DistanceType::INVERSE_LINEAR:
+			for ( int i = 0; i < iterations; i++ )
+			{
+				tempB4[i] = _mm256_rcp_ps( distanceToBoid4[i] );
+				tempB4[i] = _mm256_blendv_ps( tempB4[i], _mm256_setzero_ps(),
+											  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
+			}
+			break;
+
+		case DistanceType::QUADRATIC:
+			for ( int i = 0; i < iterations; i++ )
+			{ tempB4[i] = _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] ); }
+			break;
+
+		case DistanceType::INVERSE_QUADRATIC:
+			for ( int i = 0; i < iterations; i++ )
+			{
+				tempB4[i] = _mm256_rcp_ps( _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] ) );
+				tempB4[i] = _mm256_blendv_ps( tempB4[i], _mm256_setzero_ps(),
+											  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
+			}
+			break;
 		}
 
-		// phase 4: update the SumVectors values with the remaining values
-
-		s.count += phaseThree;
-		int phaseThreeSimd = ( phaseThree + SIMDSIZE - 1 ) / SIMDSIZE;
-		for ( int i = 0; i < phaseThreeSimd; i++ )
+		for ( int i = 0; i < iterations; i++ )
 		{
-			// --------------------------------------------------------------------------------
-			// Compute the seperation factor (bootiful)
-
-			// info about the _mm256_cmp_ps function
-			// https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmp_ps&expand=744
-			// https://stackoverflow.com/questions/16988199/how-to-choose-avx-compare-predicate-variants
-			// https://stackoverflow.com/questions/8627331/what-does-ordered-unordered-comparison-mean
-
-			__m256 seperationFactor4 = _mm256_setzero_ps();
-			switch ( SeparationType )
+			if ( _mm256_movemask_ps( mask4[i] ) )
 			{
-			case DistanceType::LINEAR:
-				seperationFactor4 = distanceToBoid4[i];
-				break;
+				s.separationSumX4 = _mm256_blendv_ps(
+					s.separationSumX4,
+					_mm256_add_ps( s.separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), tempB4[i] ) ),
+					mask4[i] );
 
-			case DistanceType::INVERSE_LINEAR:
-				seperationFactor4 = _mm256_rcp_ps( distanceToBoid4[i] );
-				//                                    false case           true case
-				seperationFactor4 = _mm256_blendv_ps( seperationFactor4, _mm256_setzero_ps(),
-													  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
-				break;
+				s.separationSumY4 = _mm256_blendv_ps(
+					s.separationSumY4,
+					_mm256_add_ps( s.separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), tempB4[i] ) ),
+					mask4[i] );
 
-			case DistanceType::QUADRATIC:
-				seperationFactor4 = _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] );
-				break;
+				s.separationSumZ4 = _mm256_blendv_ps(
+					s.separationSumZ4,
+					_mm256_add_ps( s.separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), tempB4[i] ) ),
+					mask4[i] );
 
-			case DistanceType::INVERSE_QUADRATIC:
-				seperationFactor4 = _mm256_rcp_ps( _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] ) );
-				//                                    false case		   true case
-				seperationFactor4 = _mm256_blendv_ps( seperationFactor4, _mm256_setzero_ps(),
-													  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
-				break;
+				s.headingSumX4 = _mm256_blendv_ps(
+					s.headingSumX4,
+					_mm256_add_ps( s.headingSumX4, bucket->velX4[i] ),
+					mask4[i] );
+
+				s.headingSumY4 = _mm256_blendv_ps(
+					s.headingSumY4,
+					_mm256_add_ps( s.headingSumY4, bucket->velY4[i] ),
+					mask4[i] );
+
+				s.headingSumZ4 = _mm256_blendv_ps(
+					s.headingSumZ4,
+					_mm256_add_ps( s.headingSumZ4, bucket->velZ4[i] ),
+					mask4[i] );
+
+				s.positionSumX4 = _mm256_blendv_ps(
+					s.positionSumX4,
+					_mm256_add_ps( s.positionSumX4, bucket->posX4[i] ),
+					mask4[i] );
+
+				s.positionSumY4 = _mm256_blendv_ps(
+					s.positionSumY4,
+					_mm256_add_ps( s.positionSumY4, bucket->posY4[i] ),
+					mask4[i] );
+
+				s.positionSumZ4 = _mm256_blendv_ps(
+					s.positionSumZ4,
+					_mm256_add_ps( s.positionSumZ4, bucket->posZ4[i] ),
+					mask4[i] );
 			}
-
-			// Compute everything!
-			// suuuupparr fast! (or not)
-			s.separationSumX4 = _mm256_add_ps( s.separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), seperationFactor4 ) );
-			s.separationSumY4 = _mm256_add_ps( s.separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), seperationFactor4 ) );
-			s.separationSumZ4 = _mm256_add_ps( s.separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), seperationFactor4 ) );
-
-			s.headingSumX4 = _mm256_add_ps( s.headingSumX4, bucketVelocityX4[i] );
-			s.headingSumY4 = _mm256_add_ps( s.headingSumY4, bucketVelocityY4[i] );
-			s.headingSumZ4 = _mm256_add_ps( s.headingSumZ4, bucketVelocityZ4[i] );
-
-			s.positionSumX4 = _mm256_add_ps( s.positionSumX4, bucketPositionX4[i] );
-			s.positionSumY4 = _mm256_add_ps( s.positionSumY4, bucketPositionY4[i] );
-			s.positionSumZ4 = _mm256_add_ps( s.positionSumZ4, bucketPositionZ4[i] );
 		}
 	}
 }
