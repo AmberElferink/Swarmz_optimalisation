@@ -3,20 +3,7 @@
 
 Bucket::Bucket( const int n )
 {
-	// the positions of the boids
-	posX = new float[n];
-	posY = new float[n];
-	posZ = new float[n];
-
-	// the velocities of the boids
-	velX = new float[n];
-	velY = new float[n];
-	velZ = new float[n];
-
-	// the indices of the boids
-	indx = new int[n];
-
-	maximum = n;
+	maximum = ELEMENTS_IN_BUCKET;
 	count = 0;
 }
 

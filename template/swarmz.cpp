@@ -101,7 +101,7 @@ void Grid::ConstructGrid( const vector<Boid> &b, float perceptionRadius )
 
 // perhaps: add boid index number?
 void Grid::QueryGrid(
-	const Boid &b, SumVectors &s,
+	const Boid &b, const int boidIndex, NearbyBoidsData &s,
 	const float PerceptionRadius, const float BlindspotAngleDeg,
 	const int ix, const int iy, const int iz,
 	const DistanceType SeparationType )
@@ -151,72 +151,8 @@ void Grid::QueryGrid(
 	__m256 bVelocityNegNormY4 = _mm256_set1_ps( bVelocityNegNormY );
 	__m256 bVelocityNegNormZ4 = _mm256_set1_ps( bVelocityNegNormZ );
 
-	__m256i bIndex4 = _mm256_set1_epi32( s.index );
-
-#pragma endregion
-
-	//---------------------------------------------------------------------
-	// Widening boids
-
-#pragma region Accumulation prepartion
-
-	union {
-		float separationSumX[8];
-		__m256 separationSumX4;
-	};
-
-	union {
-		float separationSumY[8];
-		__m256 separationSumY4;
-	};
-
-	union {
-		float separationSumZ[8];
-		__m256 separationSumZ4;
-	};
-
-	union {
-		float headingSumX[8];
-		__m256 headingSumX4;
-	};
-
-	union {
-		float headingSumY[8];
-		__m256 headingSumY4;
-	};
-
-	union {
-		float headingSumZ[8];
-		__m256 headingSumZ4;
-	};
-
-	union {
-		float positionSumX[8];
-		__m256 positionSumX4;
-	};
-
-	union {
-		float positionSumY[8];
-		__m256 positionSumY4;
-	};
-
-	union {
-		float positionSumZ[8];
-		__m256 positionSumZ4;
-	};
-
-	// initialize it all to 0.
-	separationSumX4 = _mm256_setzero_ps();
-	separationSumY4 = _mm256_setzero_ps();
-	separationSumZ4 = _mm256_setzero_ps();
-
-	headingSumX4 = _mm256_setzero_ps();
-	headingSumY4 = _mm256_setzero_ps();
-	headingSumZ4 = _mm256_setzero_ps();
-
-	positionSumX4 = _mm256_setzero_ps();
-	positionSumY4 = _mm256_setzero_ps();
-	positionSumZ4 = _mm256_setzero_ps();
+	__m256i bIndex4 = _mm256_set1_epi32( boidIndex );
+	__m256 PerceptionRadius4 = _mm256_set1_ps( PerceptionRadius );
 
 #pragma endregion
 
@@ -235,6 +171,7 @@ void Grid::QueryGrid(
 		float directionToBoidX[ELEMENTS_IN_BUCKET];
 		__m256 directionToBoidX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
+
 	__declspec( align( 64 ) ) union {
 		float directionToBoidY[ELEMENTS_IN_BUCKET];
 		__m256 directionToBoidY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
@@ -243,10 +180,17 @@ void Grid::QueryGrid(
 		float directionToBoidZ[ELEMENTS_IN_BUCKET];
 		__m256 directionToBoidZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
+
 	__declspec( align( 64 ) ) union {
 		float distanceToBoid[ELEMENTS_IN_BUCKET];
 		__m256 distanceToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
+
+	__declspec( align( 64 ) ) union {
+		float distanceToBoidInv[ELEMENTS_IN_BUCKET];
+		__m256 distanceToBoidInv4[ELEMENTS_IN_BUCKET / SIMDSIZE];
+	};
+
 	__declspec( align( 64 ) ) union {
 		float anglesToBoid[ELEMENTS_IN_BUCKET];
 		__m256 anglesToBoid4[ELEMENTS_IN_BUCKET / SIMDSIZE];
@@ -334,14 +278,28 @@ void Grid::QueryGrid(
 			directionToBoidX4[i] = _mm256_sub_ps( bucketPositionX4[i], bPositionX4 );
 			directionToBoidY4[i] = _mm256_sub_ps( bucketPositionY4[i], bPositionY4 );
 			directionToBoidZ4[i] = _mm256_sub_ps( bucketPositionZ4[i], bPositionZ4 );
+		}
 
+		for ( int i = 0; i < phaseOneSimd; i++ )
+		{
 			// compute the distance
-			distanceToBoid4[i] = _mm256_sqrt_ps(
+			distanceToBoidInv4[i] = _mm256_rsqrt_ps(
 				_mm256_add_ps(
 					_mm256_add_ps(
 						_mm256_mul_ps( directionToBoidX4[i], directionToBoidX4[i] ),
 						_mm256_mul_ps( directionToBoidY4[i], directionToBoidY4[i] ) ),
 					_mm256_mul_ps( directionToBoidZ4[i], directionToBoidZ4[i] ) ) );
+
+			distanceToBoid4[i] = _mm256_rcp_ps( distanceToBoidInv4[i] );
+		}
+
+		for ( int i = 0; i < phaseOneSimd; i++ )
+		{
+			__m256i dMask = _mm256_castps_si256( _mm256_cmp_ps( distanceToBoid4[i], PerceptionRadius4, _CMP_GT_OQ ) );
+			__m256i iMask = _mm256_cmpeq_epi32( bIndex4, bucket->indx4[i] );
+
+			// compute the masks
+			mask4[i] = _mm256_or_si256( dMask, iMask );
 		}
 
 		// check for phase 2:
@@ -353,10 +311,7 @@ void Grid::QueryGrid(
 		int phaseTwo = 0;
 		for ( int i = 0; i < phaseOne; i++ )
 		{
-			if ( s.index == bucket->indx[i] )
-				continue;
-
-			if ( distanceToBoid[i] > PerceptionRadius )
+			if ( mask[i] )
 				continue;
 
 			if ( distanceToBoid[i] < epsilon )
@@ -374,6 +329,7 @@ void Grid::QueryGrid(
 
 			if ( phaseTwo != i )
 			{
+				// https://stackoverflow.com/questions/36932240/avx2-what-is-the-most-efficient-way-to-pack-left-based-on-a-mask
 				// move the data, same cache line
 				directionToBoidX[phaseTwo] = directionToBoidX[i];
 				directionToBoidY[phaseTwo] = directionToBoidY[i];
@@ -390,7 +346,6 @@ void Grid::QueryGrid(
 				bucketPositionY[phaseTwo] = bucketPositionY[i];
 				bucketPositionZ[phaseTwo] = bucketPositionZ[i];
 			}
-
 			phaseTwo++;
 		}
 
@@ -419,10 +374,9 @@ void Grid::QueryGrid(
 			for ( int i = 0; i < phaseTwoSimd; i++ )
 			{
 				// compute the normalized direction
-				__m256 recd4 = _mm256_div_ps( ones, distanceToBoid4[i] );
-				__m256 directionToBoidNormX4 = _mm256_mul_ps( directionToBoidX4[i], recd4 );
-				__m256 directionToBoidNormY4 = _mm256_mul_ps( directionToBoidY4[i], recd4 );
-				__m256 directionToBoidNormZ4 = _mm256_mul_ps( directionToBoidZ4[i], recd4 );
+				__m256 directionToBoidNormX4 = _mm256_mul_ps( directionToBoidX4[i], distanceToBoidInv4[i] );
+				__m256 directionToBoidNormY4 = _mm256_mul_ps( directionToBoidY4[i], distanceToBoidInv4[i] );
+				__m256 directionToBoidNormZ4 = _mm256_mul_ps( directionToBoidZ4[i], distanceToBoidInv4[i] );
 
 				// compute dotproduct
 				__m256 dotProduct4 = _mm256_add_ps(
@@ -516,7 +470,7 @@ void Grid::QueryGrid(
 				break;
 
 			case DistanceType::INVERSE_LINEAR:
-				seperationFactor4 = _mm256_div_ps( ones, distanceToBoid4[i] );
+				seperationFactor4 = _mm256_rcp_ps( distanceToBoid4[i] );
 				//                                    false case           true case
 				seperationFactor4 = _mm256_blendv_ps( seperationFactor4, _mm256_setzero_ps(),
 													  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
@@ -527,7 +481,7 @@ void Grid::QueryGrid(
 				break;
 
 			case DistanceType::INVERSE_QUADRATIC:
-				seperationFactor4 = _mm256_div_ps( ones, _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] ) );
+				seperationFactor4 = _mm256_rcp_ps( _mm256_mul_ps( distanceToBoid4[i], distanceToBoid4[i] ) );
 				//                                    false case		   true case
 				seperationFactor4 = _mm256_blendv_ps( seperationFactor4, _mm256_setzero_ps(),
 													  _mm256_cmp_ps( distanceToBoid4[i], _mm256_setzero_ps(), _CMP_EQ_OQ ) );
@@ -536,35 +490,18 @@ void Grid::QueryGrid(
 
 			// Compute everything!
 			// suuuupparr fast! (or not)
-			separationSumX4 = _mm256_add_ps( separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), seperationFactor4 ) );
-			separationSumY4 = _mm256_add_ps( separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), seperationFactor4 ) );
-			separationSumZ4 = _mm256_add_ps( separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), seperationFactor4 ) );
+			s.separationSumX4 = _mm256_add_ps( s.separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), seperationFactor4 ) );
+			s.separationSumY4 = _mm256_add_ps( s.separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), seperationFactor4 ) );
+			s.separationSumZ4 = _mm256_add_ps( s.separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), seperationFactor4 ) );
 
-			headingSumX4 = _mm256_add_ps( headingSumX4, bucketVelocityX4[i] );
-			headingSumY4 = _mm256_add_ps( headingSumY4, bucketVelocityY4[i] );
-			headingSumZ4 = _mm256_add_ps( headingSumZ4, bucketVelocityZ4[i] );
+			s.headingSumX4 = _mm256_add_ps( s.headingSumX4, bucketVelocityX4[i] );
+			s.headingSumY4 = _mm256_add_ps( s.headingSumY4, bucketVelocityY4[i] );
+			s.headingSumZ4 = _mm256_add_ps( s.headingSumZ4, bucketVelocityZ4[i] );
 
-			positionSumX4 = _mm256_add_ps( positionSumX4, bucketPositionX4[i] );
-			positionSumY4 = _mm256_add_ps( positionSumY4, bucketPositionY4[i] );
-			positionSumZ4 = _mm256_add_ps( positionSumZ4, bucketPositionZ4[i] );
+			s.positionSumX4 = _mm256_add_ps( s.positionSumX4, bucketPositionX4[i] );
+			s.positionSumY4 = _mm256_add_ps( s.positionSumY4, bucketPositionY4[i] );
+			s.positionSumZ4 = _mm256_add_ps( s.positionSumZ4, bucketPositionZ4[i] );
 		}
-	}
-
-	// todo: a lot of times 0 is added?
-	// sum up all the results horizontally ( :| )
-	for ( int i = 0, l = min( SIMDSIZE, s.count ); i < l; i++ )
-	{
-		s.separationSumX += separationSumX[i];
-		s.separationSumY += separationSumY[i];
-		s.separationSumZ += separationSumZ[i];
-
-		s.headingSumX += headingSumX[i];
-		s.headingSumY += headingSumY[i];
-		s.headingSumZ += headingSumZ[i];
-
-		s.positionSumX += positionSumX[i];
-		s.positionSumY += positionSumY[i];
-		s.positionSumZ += positionSumZ[i];
 	}
 }
 

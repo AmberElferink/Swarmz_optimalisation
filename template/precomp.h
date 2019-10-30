@@ -9,7 +9,6 @@
 
 #define DEBUG_PERFORMANCE
 
-
 #define SCRWIDTH 1440
 #define SCRHEIGHT 810
 
@@ -18,7 +17,7 @@
 #define ELEMENTS_IN_BUCKET 64
 
 
-#define MULTITHREADING
+//#define MULTITHREADING
 #define SIMDSIZE 8
 
 

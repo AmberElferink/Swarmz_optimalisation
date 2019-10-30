@@ -6,32 +6,32 @@ class Bucket
 
 	// represents the information the bucket can store.
 	__declspec( align( 64 ) ) union {
-		float *posX;
-		__m256 *posX4;
+		float posX[ELEMENTS_IN_BUCKET];
+		__m256 posX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		float *posY;
-		__m256 *posY4;
+		float posY[ELEMENTS_IN_BUCKET];
+		__m256 posY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		float *posZ;
-		__m256 *posZ4;
+		float posZ[ELEMENTS_IN_BUCKET];
+		__m256 posZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		float *velX;
-		__m256 *velX4;
+		float velX[ELEMENTS_IN_BUCKET];
+		__m256 velX4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		float *velY;
-		__m256 *velY4;
+		float velY[ELEMENTS_IN_BUCKET];
+		__m256 velY4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		float *velZ;
-		__m256 *velZ4;
+		float velZ[ELEMENTS_IN_BUCKET];
+		__m256 velZ4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 	__declspec( align( 64 ) ) union {
-		int *indx;
-		__m256i *indx4;
+		int indx[ELEMENTS_IN_BUCKET];
+		__m256i indx4[ELEMENTS_IN_BUCKET / SIMDSIZE];
 	};
 
 	// represents the maximum number of

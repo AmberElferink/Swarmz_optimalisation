@@ -300,19 +300,72 @@ struct Vec3
 };
 
 //this is easy to pass through methods
-struct SumVectors
+struct NearbyBoidsData
 {
-	int index = 0;
+	// represents the number of boids
+	// used for the calculation.
 	int count = 0;
-	float separationSumX = 0;
-	float separationSumY = 0;
-	float separationSumZ = 0;
-	float headingSumX = 0;
-	float headingSumY = 0;
-	float headingSumZ = 0;
-	float positionSumX = 0;
-	float positionSumY = 0;
-	float positionSumZ = 0;
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float separationSumX[SIMDSIZE];
+		__m256 separationSumX4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float separationSumY[SIMDSIZE];
+		__m256 separationSumY4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float separationSumZ[SIMDSIZE];
+		__m256 separationSumZ4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float headingSumX[SIMDSIZE];
+		__m256 headingSumX4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float headingSumY[SIMDSIZE];
+		__m256 headingSumY4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float headingSumZ[SIMDSIZE];
+		__m256 headingSumZ4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float positionSumX[SIMDSIZE];
+		__m256 positionSumX4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float positionSumY[SIMDSIZE];
+		__m256 positionSumY4;
+	};
+
+	__declspec( align( SIMDSIZE * sizeof( float ) ) ) union {
+		float positionSumZ[SIMDSIZE];
+		__m256 positionSumZ4;
+	};
+
+	NearbyBoidsData()
+	{
+		// initialize it all to 0.
+		separationSumX4 = _mm256_setzero_ps();
+		separationSumY4 = _mm256_setzero_ps();
+		separationSumZ4 = _mm256_setzero_ps();
+
+		headingSumX4 = _mm256_setzero_ps();
+		headingSumY4 = _mm256_setzero_ps();
+		headingSumZ4 = _mm256_setzero_ps();
+
+		positionSumX4 = _mm256_setzero_ps();
+		positionSumY4 = _mm256_setzero_ps();
+		positionSumZ4 = _mm256_setzero_ps();
+	}
 };
 
 struct Vec3Hasher
@@ -415,7 +468,7 @@ class Grid
 
 	// queries the grid, stores the result in
 	// the out vector. Take note: reuse the vector.
-	void QueryGrid( const Boid &b, SumVectors &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
+	void QueryGrid( const Boid &b, const int, NearbyBoidsData &s, const float PerceptionRadius, const float BlindspotAngleDeg, const int ix, const int iy, const int iz, const DistanceType SeparationType );
 
 	void DrawGrid( Surface *surface, Pixel density );
 
@@ -528,11 +581,10 @@ class Swarm
 
 	void updateBoid( Boid &b, int index )
 	{
-		SumVectors s;
-		s.index = index;
+		NearbyBoidsData s;
 
 		//calculate the resulting force vectors of each nearby boid in the grid that is in range and output them to the variables above
-		getSumVectors( b, s, SeparationType );
+		getSumVectors( b, index, s, SeparationType );
 
 		//now the forces are calculated, accelerate the boids
 		accelerateByForce( b, s );
@@ -540,7 +592,7 @@ class Swarm
 
 	// perhaps: add boid index number?
 	//loop over the nearby gricells to look at each boid in them and calculate the corresponding force the current boid should feel by all of them
-	void getSumVectors( const Boid &b, SumVectors &s, const DistanceType SeparationType )
+	void getSumVectors( const Boid &b, const int index, NearbyBoidsData &s, const DistanceType SeparationType )
 	{
 		// retrieve the index
 		int ix, iy, iz;
@@ -551,6 +603,10 @@ class Swarm
 		const int sy = 1;
 		const int sz = 1;
 
+#pragma region Accumulation prepartion
+
+#pragma endregion
+
 		// loop over all neighbouring grids including the one the boid is in
 		for ( int x = ix - sx, lx = ix + sx; x <= lx; x++ )
 		{
@@ -559,14 +615,14 @@ class Swarm
 				for ( int z = iz - sz, lz = iz + sz; z <= lz; z++ )
 				{
 					//sum up all forces with all nearby boids in those cells
-					grid->QueryGrid( b, s, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
+					grid->QueryGrid( b, index, s, PerceptionRadius, BlindspotAngleDeg, x, y, z, SeparationType );
 				}
 			}
 		}
 	}
 
 	// With the accumulated force vectors, accelerate the boid
-	void accelerateByForce( Boid &b, const SumVectors &s )
+	void accelerateByForce( Boid &b, NearbyBoidsData &s )
 	{
 		b.numberOfNearbyBoids = s.count;
 
@@ -593,33 +649,50 @@ class Swarm
 		//Vec3 alignment = s.count > 0 ? s.headingSum / s.count : headingSum;
 		//Vec3 avgPosition = s.count > 0 ? positionSum / s.count : b.Position;
 
-		float separationX = s.separationSumX;
-		float separationY = s.separationSumY;
-		float separationZ = s.separationSumZ;
+		float separationX = 0;
+		float separationY = 0;
+		float separationZ = 0;
 
-		float alignmentX = s.headingSumX;
-		float alignmentY = s.headingSumY;
-		float alignmentZ = s.headingSumZ;
+		float alignmentX = 0;
+		float alignmentY = 0;
+		float alignmentZ = 0;
 
-		float avgPositionX = b.Position.X;
-		float avgPositionY = b.Position.Y;
-		float avgPositionZ = b.Position.Z;
+		float avgPositionX = 0;
+		float avgPositionY = 0;
+		float avgPositionZ = 0;
 
+		// todo: a lot of times 0 is added?
+		// sum up all the results horizontally ( :| )
 		if ( s.count > 0 )
 		{
-			separationX = s.separationSumX / s.count;
-			separationY = s.separationSumY / s.count;
-			separationZ = s.separationSumZ / s.count;
+			__m256 count4 = _mm256_set1_ps( s.count );
 
-			// Alignment: steer towards the average heading of local flockmates
-			alignmentX = s.headingSumX / s.count;
-			alignmentY = s.headingSumY / s.count;
-			alignmentZ = s.headingSumZ / s.count;
+			s.separationSumX4 = _mm256_div_ps( s.separationSumX4, count4 );
+			s.separationSumY4 = _mm256_div_ps( s.separationSumY4, count4 );
+			s.separationSumZ4 = _mm256_div_ps( s.separationSumZ4, count4 );
 
-			// Cohesion: steer to move toward the average position of local flockmates
-			avgPositionX = s.positionSumX / s.count;
-			avgPositionY = s.positionSumY / s.count;
-			avgPositionZ = s.positionSumZ / s.count;
+			s.headingSumX4 = _mm256_div_ps( s.headingSumX4, count4 );
+			s.headingSumY4 = _mm256_div_ps( s.headingSumY4, count4 );
+			s.headingSumZ4 = _mm256_div_ps( s.headingSumZ4, count4 );
+
+			s.positionSumX4 = _mm256_div_ps( s.positionSumX4, count4 );
+			s.positionSumY4 = _mm256_div_ps( s.positionSumY4, count4 );
+			s.positionSumZ4 = _mm256_div_ps( s.positionSumZ4, count4 );
+
+			for ( int i = 0, l = SIMDSIZE; i < l; i++ )
+			{
+				separationX += s.separationSumX[i];
+				separationY += s.separationSumY[i];
+				separationZ += s.separationSumZ[i];
+
+				alignmentX += s.headingSumX[i];
+				alignmentY += s.headingSumY[i];
+				alignmentZ += s.headingSumZ[i];
+
+				avgPositionX += s.positionSumX[i];
+				avgPositionY += s.positionSumY[i];
+				avgPositionZ += s.positionSumZ[i];
+			}
 		}
 
 		//Vec3 cohesion = avgPosition - b.Position;

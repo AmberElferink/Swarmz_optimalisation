@@ -183,7 +183,7 @@ void DrawGUI()
 void Game::Init()
 {
 	union {
-		float a[8];
+		float a[SIMDSIZE];
 		__m256 a4 = _mm256_set1_ps( 1.0f );
 	};
 
