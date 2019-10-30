@@ -548,8 +548,11 @@ class Swarm
 		}
 	}
 
+	int i = 0;
 	void UpdateAcceleration()
 	{
+		i++;
+		printf( "Updating! %i", i );
 		if ( PerceptionRadius == 0 )
 			PerceptionRadius = 1;
 
@@ -681,6 +684,7 @@ class Swarm
 
 			for ( int i = 0, l = SIMDSIZE; i < l; i++ )
 			{
+
 				separationX += s.separationSumX[i];
 				separationY += s.separationSumY[i];
 				separationZ += s.separationSumZ[i];
@@ -692,6 +696,39 @@ class Swarm
 				avgPositionX += s.positionSumX[i];
 				avgPositionY += s.positionSumY[i];
 				avgPositionZ += s.positionSumZ[i];
+
+				if ( isnan( separationX ) || isnan( separationY ) || isnan( separationZ ) )
+					throw( "Seperation is nan!" );
+
+				if ( isnan( alignmentX ) || isnan( alignmentY ) || isnan( alignmentZ ) )
+				{
+					for ( int j = 0; j < 8; j++ )
+					{
+
+						printf( "alignment x: %f \r\n", s.headingSumX[j] );
+						printf( "alignment y: %f \r\n", s.headingSumY[j] );
+					}
+
+					printf( "x: %f\r\n", alignmentX );
+					printf( "y: %f\r\n", alignmentY );
+					printf( "z: %f\r\n", alignmentZ );
+					throw( "Alignment is nan!" );
+				}
+
+				if ( isnan( avgPositionX ) || isnan( avgPositionY ) || isnan( avgPositionZ ) )
+				{
+					for ( int j = 0; j < 8; j++ )
+					{
+
+						printf( "alignment x: %f \r\n", s.positionSumX[j] );
+						printf( "alignment y: %f \r\n", s.positionSumY[j] );
+					}
+
+					printf( "x: %f\r\n", avgPositionX );
+					printf( "y: %f\r\n", avgPositionY );
+					printf( "z: %f\r\n", avgPositionZ );
+					throw( "Position is nan!" );
+				}
 			}
 		}
 

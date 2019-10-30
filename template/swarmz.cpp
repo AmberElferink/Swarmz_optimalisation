@@ -290,10 +290,10 @@ void Grid::QueryGrid(
 			// todo: inverse mask
 
 			// ((uint*)(mask4[0].m256_f32))[0]
-			mask4[i] = _mm256_castsi256_ps( 
+			mask4[i] = _mm256_castsi256_ps(
 				// inverse
-				_mm256_xor_si256( 
-					_mm256_cmpeq_epi32( bIndex4, bucket->indx4[i] ), 
+				_mm256_xor_si256(
+					_mm256_cmpeq_epi32( bIndex4, bucket->indx4[i] ),
 					ones ) );
 		}
 
@@ -323,9 +323,9 @@ void Grid::QueryGrid(
 
 			for ( int i = 0; i < iterations; i++ )
 			{
-				tempA4[i] = _mm256_mul_ps( tempA4[i], tempA4[i] );
-				tempB4[i] = _mm256_mul_ps( tempB4[i], tempB4[i] );
-				tempC4[i] = _mm256_mul_ps( tempC4[i], tempC4[i] );
+				tempA4[i] = _mm256_mul_ps( bVelocityNegNormX4, tempA4[i] );
+				tempB4[i] = _mm256_mul_ps( bVelocityNegNormY4, tempB4[i] );
+				tempC4[i] = _mm256_mul_ps( bVelocityNegNormZ4, tempC4[i] );
 			}
 
 			for ( int i = 0; i < iterations; i++ )
@@ -352,7 +352,7 @@ void Grid::QueryGrid(
 			for ( int i = 0; i < iterations; i++ )
 			{
 				mask4[i] = _mm256_and_ps(
-					_mm256_cmp_ps( BlindspotAngleDeg4, anglesToBoid4[i], _CMP_GT_OQ ),
+					_mm256_cmp_ps( BlindspotAngleDeg4, anglesToBoid4[i], _CMP_LT_OQ ),
 					mask4[i] );
 			}
 		}
@@ -367,11 +367,11 @@ void Grid::QueryGrid(
 		{
 			for ( int j = 0; j < SIMDSIZE; j++ )
 			{
-				if ( mask[i] )
+				if ( mask[j + i * SIMDSIZE] )
 					boids++;
 			}
 		}
-		s.count = boids;
+		s.count += boids;
 
 		switch ( SeparationType )
 		{
@@ -406,53 +406,55 @@ void Grid::QueryGrid(
 
 		for ( int i = 0; i < iterations; i++ )
 		{
-			if ( _mm256_movemask_ps( mask4[i] ) )
+			if (_mm256_movemask_ps(_mm256_cmp_ps(distanceToBoid4[i], distanceToBoid4[i], _CMP_EQ_OQ)) != 255)
 			{
-				s.separationSumX4 = _mm256_blendv_ps(
-					s.separationSumX4,
-					_mm256_add_ps( s.separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), tempB4[i] ) ),
-					mask4[i] );
-
-				s.separationSumY4 = _mm256_blendv_ps(
-					s.separationSumY4,
-					_mm256_add_ps( s.separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), tempB4[i] ) ),
-					mask4[i] );
-
-				s.separationSumZ4 = _mm256_blendv_ps(
-					s.separationSumZ4,
-					_mm256_add_ps( s.separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), tempB4[i] ) ),
-					mask4[i] );
-
-				s.headingSumX4 = _mm256_blendv_ps(
-					s.headingSumX4,
-					_mm256_add_ps( s.headingSumX4, bucket->velX4[i] ),
-					mask4[i] );
-
-				s.headingSumY4 = _mm256_blendv_ps(
-					s.headingSumY4,
-					_mm256_add_ps( s.headingSumY4, bucket->velY4[i] ),
-					mask4[i] );
-
-				s.headingSumZ4 = _mm256_blendv_ps(
-					s.headingSumZ4,
-					_mm256_add_ps( s.headingSumZ4, bucket->velZ4[i] ),
-					mask4[i] );
-
-				s.positionSumX4 = _mm256_blendv_ps(
-					s.positionSumX4,
-					_mm256_add_ps( s.positionSumX4, bucket->posX4[i] ),
-					mask4[i] );
-
-				s.positionSumY4 = _mm256_blendv_ps(
-					s.positionSumY4,
-					_mm256_add_ps( s.positionSumY4, bucket->posY4[i] ),
-					mask4[i] );
-
-				s.positionSumZ4 = _mm256_blendv_ps(
-					s.positionSumZ4,
-					_mm256_add_ps( s.positionSumZ4, bucket->posZ4[i] ),
-					mask4[i] );
+				printf("Something is nan!");
 			}
+
+			s.separationSumX4 = _mm256_blendv_ps(
+				s.separationSumX4,
+				_mm256_add_ps( s.separationSumX4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidX4[i] ), tempB4[i] ) ),
+				mask4[i] );
+
+			s.separationSumY4 = _mm256_blendv_ps(
+				s.separationSumY4,
+				_mm256_add_ps( s.separationSumY4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidY4[i] ), tempB4[i] ) ),
+				mask4[i] );
+
+			s.separationSumZ4 = _mm256_blendv_ps(
+				s.separationSumZ4,
+				_mm256_add_ps( s.separationSumZ4, _mm256_mul_ps( _mm256_sub_ps( _mm256_setzero_ps(), directionToBoidZ4[i] ), tempB4[i] ) ),
+				mask4[i] );
+
+			s.headingSumX4 = _mm256_blendv_ps(
+				s.headingSumX4,
+				_mm256_add_ps( s.headingSumX4, bucket->velX4[i] ),
+				mask4[i] );
+
+			s.headingSumY4 = _mm256_blendv_ps(
+				s.headingSumY4,
+				_mm256_add_ps( s.headingSumY4, bucket->velY4[i] ),
+				mask4[i] );
+
+			s.headingSumZ4 = _mm256_blendv_ps(
+				s.headingSumZ4,
+				_mm256_add_ps( s.headingSumZ4, bucket->velZ4[i] ),
+				mask4[i] );
+
+			s.positionSumX4 = _mm256_blendv_ps(
+				s.positionSumX4,
+				_mm256_add_ps( s.positionSumX4, bucket->posX4[i] ),
+				mask4[i] );
+
+			s.positionSumY4 = _mm256_blendv_ps(
+				s.positionSumY4,
+				_mm256_add_ps( s.positionSumY4, bucket->posY4[i] ),
+				mask4[i] );
+
+			s.positionSumZ4 = _mm256_blendv_ps(
+				s.positionSumZ4,
+				_mm256_add_ps( s.positionSumZ4, bucket->posZ4[i] ),
+				mask4[i] );
 		}
 	}
 }
