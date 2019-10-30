@@ -570,6 +570,13 @@ class Swarm
 		grid = new Grid( NUMBER_OF_BUCKETS, ELEMENTS_IN_BUCKET, GRIDSIZE, GRIDSIZE, GRIDSIZE );
 	}
 
+	~Swarm()
+	{
+		delete grid;
+		//stop the threads
+		delete pool;
+	}
+
 	void Update( float delta )
 	{
 		UpdateAcceleration();
