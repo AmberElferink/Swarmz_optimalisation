@@ -43,6 +43,7 @@
 #include <functional>
 #include <iostream>
 #include <queue>
+#include <shared_mutex>
 #include <thread>
 #include <vector>
 
@@ -68,8 +69,11 @@ class ThreadPool
 	}
 	bool isDone()
 	{
+		std::shared_lock<std::shared_mutex> lock( busyThreadsMutex );
 		if ( busyCounter != 0 )
 			return false;
+		else
+			return true;
 	}
 
   private:
@@ -77,7 +81,7 @@ class ThreadPool
 	std::mutex mEventMutex;
 
 	int busyCounter = 0;
-	std::mutex busyThreadsMutex;
+	std::shared_mutex busyThreadsMutex;
 
 	std::vector<std::thread> allThreads;
 	bool mStopping = false;
@@ -109,13 +113,13 @@ class ThreadPool
 						mTasks.pop();
 					}
 					{
-						std::unique_lock<std::mutex> lock( busyThreadsMutex );
+						std::unique_lock<std::shared_mutex> lock( busyThreadsMutex );
 						busyCounter++;
 						//unlock the lock zodat andere threads ook kunnen starten met de scope, en start task
 					}
 					task();
 					{
-						std::unique_lock<std::mutex> lock( busyThreadsMutex );
+						std::unique_lock<std::shared_mutex> lock( busyThreadsMutex );
 						busyCounter--;
 						//unlock the lock zodat andere threads ook kunnen starten met de scope, en start task
 					}
@@ -613,9 +617,12 @@ class Swarm
 				}
 			} );
 		}
-		while ( !pool->isDone() )
 		{
-			//"join" the threads but keep them alive for the next job
+
+			while ( !pool->isDone() )
+			{
+				//"join" the threads but keep them alive for the next job
+			}
 		}
 
 #else
